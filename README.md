@@ -1,8 +1,13 @@
-# application online-bar
+## App Online-bar
+----
 
-# Client-Server Architecture
+**Based on** 
+-Client-Server Architecture
+-Clean Architecture
 
-# REST API
-# WebSocket
+**using**
+- REST API
+- WebSocket
 
-# go get github.com/lexanlix/online-bar
+To install:
+go get github.com/lexanlix/online-bar
