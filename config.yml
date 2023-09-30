@@ -1,0 +1,25 @@
+---
+
+is_debug: true
+listen:
+  type: port
+  bind_ip: 0.0.0.0
+  port: 10000
+mongodb:
+  host: localhost
+  port: 27017
+  database: user-service
+  auth_db: 
+  username:
+  password:
+  collection: users
+storage:
+  host: localhost
+  port: 5432
+  database: postgres
+  username: postgres
+  password: med2med2
+auth:
+  accessTokenTTL: 120m
+  refreshTokenTTL: 43200m #30 days
+  signing_key: sanyakravcov
