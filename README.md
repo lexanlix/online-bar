@@ -2,12 +2,12 @@
 ----
 
 **Based on** 
--Client-Server Architecture
--Clean Architecture
+- Client-Server Architecture
+- Clean Architecture
 
-**using**
+**Using**
 - REST API
 - WebSocket
 
 To install:
-go get github.com/lexanlix/online-bar
+`go get github.com/lexanlix/online-bar`
