@@ -1,0 +1,7 @@
+*.pgsql
+*.jpg
+*.logs
+*.json
+*.http-request
+*.sock
+websocket
