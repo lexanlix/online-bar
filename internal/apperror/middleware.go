@@ -22,6 +22,10 @@ func Middleware(h AppHandler) http.HandlerFunc {
 					w.WriteHeader(http.StatusNoContent)
 					w.Write(ErrNoContent.Marshal())
 					return
+				} else if errors.Is(err, ErrUnauthorized) {
+					w.WriteHeader(http.StatusUnauthorized)
+					w.Write(ErrUnauthorized.Marshal())
+					return
 				}
 
 				/* else if errors.Is(err, NoAuthErr) {

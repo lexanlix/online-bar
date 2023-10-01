@@ -1,6 +1,8 @@
 package session
 
-import "context"
+import (
+	"context"
+)
 
 type Repository interface {
 	SetSession(ctx context.Context, userID string, session Session) error

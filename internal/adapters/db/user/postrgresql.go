@@ -51,6 +51,7 @@ func (r *repository) Create(ctx context.Context, dto user.CreateUserDTO) (usr us
 	return usr, nil
 }
 
+// Удаляет юзера и все связанные с ним записи в sessions
 func (r *repository) Delete(ctx context.Context, id string) error {
 	q := `
 	DELETE FROM 

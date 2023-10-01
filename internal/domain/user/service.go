@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"restapi/internal/session"
+	"restapi/internal/domain/session"
 	"restapi/pkg/auth"
 	"restapi/pkg/hash"
 	"restapi/pkg/logging"
@@ -18,6 +18,7 @@ type Tokens struct {
 type Service interface {
 	SignUp(ctx context.Context, dto CreateUserDTO) (user User, err error)
 	SignIn(ctx context.Context, login, password string) (Tokens, error)
+	Verify(ctx context.Context, code string) error
 	DeleteAccount(ctx context.Context, deleteDTO DeleteUserDTO) error
 	CreateSession(ctx context.Context, userID string) (Tokens, error)
 	CreateEvent(ctx context.Context, user User)
@@ -35,13 +36,15 @@ type service struct {
 }
 
 func NewService(repository Repository, sessionRepo session.Repository, logger *logging.Logger,
-	hasher hash.PasswordHasher, tokenManager auth.TokenManager) Service {
+	hasher hash.PasswordHasher, tokenManager auth.TokenManager, accessTTL, refreshTTL time.Duration) Service {
 	return &service{
-		repository:   repository,
-		sessionRepo:  sessionRepo,
-		logger:       logger,
-		hasher:       hasher,
-		tokenManager: tokenManager,
+		repository:      repository,
+		sessionRepo:     sessionRepo,
+		logger:          logger,
+		hasher:          hasher,
+		tokenManager:    tokenManager,
+		accessTokenTTL:  accessTTL,
+		refreshTokenTTL: refreshTTL,
 	}
 }
 
@@ -77,8 +80,19 @@ func (s *service) SignIn(ctx context.Context, login, password string) (Tokens, e
 
 }
 
+func (s *service) Verify(ctx context.Context, code string) error {
+
+	_, err := s.tokenManager.Parse(code)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *service) DeleteAccount(ctx context.Context, deleteDTO DeleteUserDTO) error {
-	s.logger.Infof("deleting user %s", deleteDTO.Name)
+	s.logger.Infof("deleting user %s", deleteDTO.ID)
 
 	err := s.repository.Delete(ctx, deleteDTO.ID)
 	if err != nil {
@@ -87,7 +101,7 @@ func (s *service) DeleteAccount(ctx context.Context, deleteDTO DeleteUserDTO) er
 
 	// TODO удаление всех связанных с юзером сущностей: ивенты --> бары --> меню, сессии, отчеты
 
-	s.logger.Infof("user %s is deleted", deleteDTO.Name)
+	s.logger.Infof("user %s is deleted", deleteDTO.ID)
 
 	return nil
 }

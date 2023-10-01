@@ -49,17 +49,20 @@ func NewHandler(logger *logging.Logger, service user.Service) adapters.Handler {
 	}
 }
 
+func Protected(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	fmt.Fprint(w, "Protected!\n")
+}
+
 func (h *handler) Register(router *httprouter.Router) {
-	// h2 := httprouter.New().GlobalOPTIONS
-	// h2.ServeHTTP()
-	// Что-то как то почитать на git.router
+
 	router.HandlerFunc(http.MethodPost, registerUserURL, apperror.Middleware(h.UserSignUp))
 	router.HandlerFunc(http.MethodPost, signInURL, apperror.Middleware(h.SignIn))
-	router.HandlerFunc(http.MethodGet, userURL, apperror.Middleware(h.GetUserByUUID))
-	router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.UpdateUser))
-	router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.PartiallyUpdateUser))
-	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.DeleteUser))
 
+	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
+	router.HandlerFunc(http.MethodGet, userURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
+	router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
+	router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.Verify(h.PartiallyUpdateUser)))
+	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
 }
 
 func (h *handler) UserSignUp(w http.ResponseWriter, r *http.Request) error {
@@ -106,6 +109,26 @@ func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 	w.Write(respBytes)
 
 	return nil
+}
+
+func (h *handler) Verify(protectedHandler apperror.AppHandler) apperror.AppHandler {
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		code := r.Header.Get("Bearer")
+
+		if code == "" {
+			h.logger.Errorf("access token is empty")
+			return apperror.ErrUnauthorized
+		}
+
+		err := h.service.Verify(context.TODO(), code)
+		if err != nil {
+			h.logger.Errorf("access token is wrong: %v", err)
+			return apperror.ErrUnauthorized
+		}
+
+		return protectedHandler(w, r)
+	}
 }
 
 func (h *handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {

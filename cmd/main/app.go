@@ -9,10 +9,10 @@ import (
 	"path"
 	"path/filepath"
 	user_api "restapi/internal/adapters/api/user"
+	session_db "restapi/internal/adapters/db/session"
 	user_db "restapi/internal/adapters/db/user"
 	"restapi/internal/config"
 	"restapi/internal/domain/user"
-	"restapi/internal/session"
 	"restapi/pkg/auth"
 	"restapi/pkg/client/postgresql"
 	"restapi/pkg/hash"
@@ -47,11 +47,12 @@ func main() {
 	userRepository := user_db.NewRepository(postgreSQLClient, logger, hasher)
 
 	logger.Info("creating session repository")
-	sessionRepository := session.NewSessionRepository(postgreSQLClient, logger)
+	sessionRepository := session_db.NewSessionRepository(postgreSQLClient, logger)
 
 	logger.Info("register user service")
 
-	userService := user.NewService(userRepository, sessionRepository, logger, hasher, tokenManager)
+	userService := user.NewService(userRepository, sessionRepository, logger, hasher, tokenManager,
+		cfg.Tokens.AccessTokenTTL, cfg.Tokens.RefreshTokenTTL)
 
 	logger.Info("register user handler")
 	userHandler := user_api.NewHandler(logger, userService)

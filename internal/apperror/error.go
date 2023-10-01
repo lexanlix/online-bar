@@ -3,8 +3,9 @@ package apperror
 import "encoding/json"
 
 var (
-	ErrNotFound  = NewAppError(nil, "not found", "", "US-000003")
-	ErrNoContent = NewAppError(nil, "no content", "", "US-000004")
+	ErrNotFound     = NewAppError(nil, "not found", "", "US-000003")
+	ErrNoContent    = NewAppError(nil, "no content", "", "US-000004")
+	ErrUnauthorized = NewAppError(nil, "not authorised", "", "US-000005")
 )
 
 type AppError struct {

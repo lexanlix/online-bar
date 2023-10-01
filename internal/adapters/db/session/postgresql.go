@@ -1,8 +1,9 @@
-package session
+package session_db
 
 import (
 	"context"
 	"fmt"
+	"restapi/internal/domain/session"
 	"restapi/pkg/client/postgresql"
 	"restapi/pkg/logging"
 	repeatable "restapi/pkg/utils"
@@ -14,13 +15,13 @@ type SessionRepository struct {
 	logger *logging.Logger
 }
 
-func (sr *SessionRepository) SetSession(ctx context.Context, userID string, session Session) error {
+func (sr *SessionRepository) SetSession(ctx context.Context, userID string, session session.Session) error {
 	q := `	
 	INSERT INTO sessions 
 		(user_id, refresh_token, expires_at, last_visit_at)
 	VALUES 
 		($1, $2, $3, $4)
-	` // CHECK REQUEST!!! //
+	`
 
 	sr.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
@@ -35,7 +36,7 @@ func (sr *SessionRepository) SetSession(ctx context.Context, userID string, sess
 	return nil
 }
 
-func NewSessionRepository(client postgresql.Client, logger *logging.Logger) Repository {
+func NewSessionRepository(client postgresql.Client, logger *logging.Logger) session.Repository {
 	return &SessionRepository{
 		client: client,
 		logger: logger,
