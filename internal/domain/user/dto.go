@@ -10,3 +10,7 @@ type CreateUserDTO struct {
 type DeleteUserDTO struct {
 	ID string `json:"id"`
 }
+
+type RefreshUserDTO struct {
+	RefreshToken string `json:"refresh_token"`
+}

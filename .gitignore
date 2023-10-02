@@ -1,5 +1,6 @@
 *.pgsql
 *.jpg
+*.txt
 *.logs
 *.json
 *.http-request

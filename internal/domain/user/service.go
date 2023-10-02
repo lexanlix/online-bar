@@ -19,8 +19,10 @@ type Service interface {
 	SignUp(ctx context.Context, dto CreateUserDTO) (user User, err error)
 	SignIn(ctx context.Context, login, password string) (Tokens, error)
 	Verify(ctx context.Context, code string) error
+	UserRefresh(ctx context.Context, dto RefreshUserDTO) (Tokens, error)
 	DeleteAccount(ctx context.Context, deleteDTO DeleteUserDTO) error
 	CreateSession(ctx context.Context, userID string) (Tokens, error)
+	UpdateSession(ctx context.Context, userID string) (Tokens, error)
 	CreateEvent(ctx context.Context, user User)
 }
 
@@ -91,6 +93,16 @@ func (s *service) Verify(ctx context.Context, code string) error {
 	return nil
 }
 
+func (s *service) UserRefresh(ctx context.Context, dto RefreshUserDTO) (Tokens, error) {
+
+	userID, err := s.sessionRepo.GetByRefreshToken(ctx, dto.RefreshToken)
+	if err != nil {
+		return Tokens{}, err
+	}
+
+	return s.UpdateSession(ctx, userID)
+}
+
 func (s *service) DeleteAccount(ctx context.Context, deleteDTO DeleteUserDTO) error {
 	s.logger.Infof("deleting user %s", deleteDTO.ID)
 
@@ -129,6 +141,32 @@ func (s *service) CreateSession(ctx context.Context, userID string) (Tokens, err
 	}
 
 	err = s.sessionRepo.SetSession(ctx, userID, session)
+
+	return res, err
+}
+
+func (s *service) UpdateSession(ctx context.Context, userID string) (Tokens, error) {
+	var (
+		res Tokens
+		err error
+	)
+
+	res.AccessToken, err = s.tokenManager.NewJWT(userID, s.accessTokenTTL)
+	if err != nil {
+		return res, err
+	}
+
+	res.RefreshToken, err = s.tokenManager.NewRefreshToken()
+	if err != nil {
+		return res, err
+	}
+
+	session := session.Session{
+		RefreshToken: res.RefreshToken,
+		ExpiresAt:    time.Now().Add(s.refreshTokenTTL),
+	}
+
+	err = s.sessionRepo.UpdateSession(ctx, userID, session)
 
 	return res, err
 }

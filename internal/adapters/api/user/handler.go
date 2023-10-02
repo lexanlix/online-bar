@@ -22,6 +22,7 @@ const (
 	userURL         = "/api/users/:uuid"
 	registerUserURL = "/api/register"
 	signInURL       = "/api/signIn"
+	refreshURL      = "/api/auth/refresh"
 	updateUserURL   = "/api/update"
 	pUpdateUserURL  = "/api/update/part"
 	deleteUserURL   = "/api/user/delete"
@@ -57,6 +58,7 @@ func (h *handler) Register(router *httprouter.Router) {
 
 	router.HandlerFunc(http.MethodPost, registerUserURL, apperror.Middleware(h.UserSignUp))
 	router.HandlerFunc(http.MethodPost, signInURL, apperror.Middleware(h.SignIn))
+	router.HandlerFunc(http.MethodPost, refreshURL, apperror.Middleware(h.UserRefresh))
 
 	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
 	router.HandlerFunc(http.MethodGet, userURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
@@ -100,7 +102,12 @@ func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	respBytes, err := json.Marshal(res)
+	tokenResponse := tokenResponse{
+		AccessToken:  res.AccessToken,
+		RefreshToken: res.RefreshToken,
+	}
+
+	respBytes, err := json.Marshal(tokenResponse)
 	if err != nil {
 		return err
 	}
@@ -129,6 +136,36 @@ func (h *handler) Verify(protectedHandler apperror.AppHandler) apperror.AppHandl
 
 		return protectedHandler(w, r)
 	}
+}
+
+// В ответе возвращаем токены в json
+func (h *handler) UserRefresh(w http.ResponseWriter, r *http.Request) error {
+	var dto user.RefreshUserDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	res, err := h.service.UserRefresh(context.TODO(), dto)
+	if err != nil {
+		return err
+	}
+
+	tokenResponse := tokenResponse{
+		AccessToken:  res.AccessToken,
+		RefreshToken: res.RefreshToken,
+	}
+
+	respBytes, err := json.Marshal(tokenResponse)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(respBytes)
+
+	return nil
 }
 
 func (h *handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
