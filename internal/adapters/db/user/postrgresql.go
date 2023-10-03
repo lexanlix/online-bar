@@ -58,7 +58,7 @@ func (r *repository) Delete(ctx context.Context, id string) error {
 		users 
 	WHERE 
 		id = $1
-	RETURNING true AS is_deleted;
+	RETURNING true AS is_deleted
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 

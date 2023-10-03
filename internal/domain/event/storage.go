@@ -3,9 +3,9 @@ package event
 import "context"
 
 type Repository interface {
-	Create(ctx context.Context, event *Event) error
-	FindAll(ctx context.Context) ([]Event, error)
-	FindOne(ctx context.Context, id string) (Event, error)
-	Update(ctx context.Context, event Event) error
-	Delete(ctx context.Context, id string) error
+	CreateEvent(context.Context, CreateEventDTO) (string, error)
+	FindAllUserEvents(context.Context, FindAllEventsDTO) ([]Event, error)
+	FindOneUserEvent(context.Context, FindEventDTO) (Event, error)
+	UpdateEvent(context.Context, UpdateEventDTO) (string, error)
+	DeleteEvent(context.Context, DeleteEventDTO) error
 }

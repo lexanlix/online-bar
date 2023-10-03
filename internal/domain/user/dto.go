@@ -7,6 +7,11 @@ type CreateUserDTO struct {
 	OneTimeCode string `json:"one_time_code"` // is needed?
 }
 
+type SignInUserDTO struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
 type DeleteUserDTO struct {
 	ID string `json:"id"`
 }

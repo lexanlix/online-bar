@@ -28,11 +28,6 @@ const (
 	deleteUserURL   = "/api/user/delete"
 )
 
-type signInInput struct {
-	Login    string `json:"login"`
-	Password string `json:"password"`
-}
-
 type tokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
@@ -48,10 +43,6 @@ func NewHandler(logger *logging.Logger, service user.Service) adapters.Handler {
 		service: service,
 		logger:  logger,
 	}
-}
-
-func Protected(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	fmt.Fprint(w, "Protected!\n")
 }
 
 func (h *handler) Register(router *httprouter.Router) {
@@ -90,7 +81,7 @@ func (h *handler) UserSignUp(w http.ResponseWriter, r *http.Request) error {
 
 // В ответе возвращаем токены в json
 func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
-	var inp signInInput
+	var inp user.SignInUserDTO
 
 	err := json.NewDecoder(r.Body).Decode(&inp)
 	if err != nil {

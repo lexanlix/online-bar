@@ -8,10 +8,13 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	event_api "restapi/internal/adapters/api/event"
 	user_api "restapi/internal/adapters/api/user"
+	event_db "restapi/internal/adapters/db/event"
 	session_db "restapi/internal/adapters/db/session"
 	user_db "restapi/internal/adapters/db/user"
 	"restapi/internal/config"
+	"restapi/internal/domain/event"
 	"restapi/internal/domain/user"
 	"restapi/pkg/auth"
 	"restapi/pkg/client/postgresql"
@@ -49,14 +52,24 @@ func main() {
 	logger.Info("creating session repository")
 	sessionRepository := session_db.NewSessionRepository(postgreSQLClient, logger)
 
-	logger.Info("register user service")
+	logger.Info("creating event repository")
+	eventRepository := event_db.NewRepository(postgreSQLClient, logger)
 
+	logger.Info("register user service")
 	userService := user.NewService(userRepository, sessionRepository, logger, hasher, tokenManager,
 		cfg.Tokens.AccessTokenTTL, cfg.Tokens.RefreshTokenTTL)
 
+	logger.Info("register event service")
+	eventService := event.NewService(eventRepository, logger)
+
 	logger.Info("register user handler")
 	userHandler := user_api.NewHandler(logger, userService)
+
+	logger.Info("register event handler")
+	eventHandler := event_api.NewHandler(logger, eventService)
+
 	userHandler.Register(router)
+	eventHandler.Register(router)
 
 	start(router, cfg)
 }
