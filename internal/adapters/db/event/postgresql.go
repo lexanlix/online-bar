@@ -7,7 +7,11 @@ import (
 	"restapi/pkg/client/postgresql"
 	"restapi/pkg/logging"
 	repeatable "restapi/pkg/utils"
-	"strings"
+)
+
+const (
+	statusCreated   = "Created"
+	statusCompleted = "Completed"
 )
 
 type repository struct {
@@ -18,9 +22,9 @@ type repository struct {
 func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO) (string, error) {
 	q := `
 	INSERT INTO events
-    	(host_id, name, description, participants_number, date_time)
+    	(host_id, name, description, participants_number, date_time, status)
 	VALUES
-    	($1, $2, $3, $4, $5)
+    	($1, $2, $3, $4, $5, $6)
 	RETURNING
     	id
 	`
@@ -28,7 +32,8 @@ func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO) 
 
 	var eventID string
 
-	row := r.client.QueryRow(ctx, q, dto.HostID, dto.Name, dto.Description, dto.ParticipantsNumber, dto.DateTime)
+	row := r.client.QueryRow(ctx, q, dto.HostID, dto.Name, dto.Description, dto.ParticipantsNumber,
+		dto.DateTime, statusCreated)
 	err := row.Scan(&eventID)
 	if err != nil {
 		return "", err
@@ -37,35 +42,26 @@ func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO) 
 	return eventID, nil
 }
 
-func (r *repository) DeleteEvent(ctx context.Context, dto event.DeleteEventDTO) error {
+// Не удаляет ивент из таблицы, а устанавливает статус "Completed"
+func (r *repository) DeleteEvent(ctx context.Context, dto event.CompleteEventDTO) (string, error) {
 	q := `
-	DELETE FROM 
-    	events
-	WHERE
-    	id = $1
-	RETURNING true AS is_deleted
+	UPDATE events
+	SET 
+		status = $2
+	WHERE 
+		id = $1
+	RETURNING status
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	var isDeleted bool
+	var status string
 
-	err := r.client.QueryRow(ctx, q, dto.ID).Scan(&isDeleted)
+	err := r.client.QueryRow(ctx, q, dto.ID, statusCompleted).Scan(&status)
 	if err != nil {
-		if strings.Contains(err.Error(), "SQLSTATE 22P02") {
-			err := fmt.Errorf("database error: %v", err)
-			return err
-		}
-
-		err := fmt.Errorf("database error: rows not found")
-		return err
+		return "", err
 	}
 
-	if !isDeleted {
-		err := fmt.Errorf("database deleting error: %v", err)
-		return err
-	}
-
-	return nil
+	return status, nil
 }
 
 func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEventsDTO) ([]event.Event, error) {

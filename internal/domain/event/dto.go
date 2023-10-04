@@ -10,7 +10,7 @@ type CreateEventDTO struct {
 	DateTime           time.Time `json:"date_time"`
 }
 
-type DeleteEventDTO struct {
+type CompleteEventDTO struct {
 	ID string `json:"id"`
 }
 

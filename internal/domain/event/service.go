@@ -7,7 +7,7 @@ import (
 
 type Service interface {
 	NewEvent(context.Context, CreateEventDTO) (string, error)
-	DeleteEvent(context.Context, DeleteEventDTO) error
+	CompleteEvent(context.Context, CompleteEventDTO) error
 	FindAllUserEvents(context.Context, FindAllEventsDTO) ([]Event, error)
 	FindEvent(context.Context, FindEventDTO) (Event, error)
 	UpdateEvent(context.Context, UpdateEventDTO) error
@@ -39,16 +39,16 @@ func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (string, err
 	return eventID, nil
 }
 
-func (s *service) DeleteEvent(ctx context.Context, dto DeleteEventDTO) error {
-	s.logger.Infof("deleting event %s", dto.ID)
+func (s *service) CompleteEvent(ctx context.Context, dto CompleteEventDTO) error {
+	s.logger.Infof("completing event %s", dto.ID)
 
-	err := s.repository.DeleteEvent(ctx, dto)
+	status, err := s.repository.DeleteEvent(ctx, dto)
 
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("event is deleted, event_id: %s", dto.ID)
+	s.logger.Infof("event is %s, event_id: %s", status, dto.ID)
 
 	return nil
 }

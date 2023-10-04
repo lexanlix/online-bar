@@ -7,5 +7,5 @@ type Repository interface {
 	FindAllUserEvents(context.Context, FindAllEventsDTO) ([]Event, error)
 	FindOneUserEvent(context.Context, FindEventDTO) (Event, error)
 	UpdateEvent(context.Context, UpdateEventDTO) (string, error)
-	DeleteEvent(context.Context, DeleteEventDTO) error
+	DeleteEvent(context.Context, CompleteEventDTO) (string, error)
 }

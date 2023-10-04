@@ -18,7 +18,7 @@ var _ adapters.Handler = &handler{}
 
 const (
 	createEventURL     = "/api/event/create"
-	deleteEventURL     = "/api/event/delete"
+	completeEventURL   = "/api/event/complete"
 	getEventsByHostURL = "/api/user/events"
 	getEventByIDurl    = "/api/user/event"
 	updateEventURL     = "/api/event/update"
@@ -38,7 +38,7 @@ func NewHandler(logger *logging.Logger, service event.Service) adapters.Handler 
 
 func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.CreateEvent))
-	router.HandlerFunc(http.MethodDelete, deleteEventURL, apperror.Middleware(h.DeleteEvent))
+	router.HandlerFunc(http.MethodDelete, completeEventURL, apperror.Middleware(h.CompleteEvent))
 	router.HandlerFunc(http.MethodPut, getEventsByHostURL, apperror.Middleware(h.GetAllByHostID))
 	router.HandlerFunc(http.MethodPut, getEventByIDurl, apperror.Middleware(h.GetByID))
 	router.HandlerFunc(http.MethodPost, updateEventURL, apperror.Middleware(h.UpdateEvent))
@@ -75,21 +75,21 @@ func (h *handler) CreateEvent(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *handler) DeleteEvent(w http.ResponseWriter, r *http.Request) error {
-	var dto event.DeleteEventDTO
+func (h *handler) CompleteEvent(w http.ResponseWriter, r *http.Request) error {
+	var dto event.CompleteEventDTO
 
 	err := json.NewDecoder(r.Body).Decode(&dto)
 	if err != nil {
 		return err
 	}
 
-	err = h.service.DeleteEvent(context.TODO(), dto)
+	err = h.service.CompleteEvent(context.TODO(), dto)
 	if err != nil {
 		return apperror.NewAppError(err, "wrong id", err.Error(), "US-000009")
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("event is deleted"))
+	w.Write([]byte("event is completed"))
 
 	return nil
 }

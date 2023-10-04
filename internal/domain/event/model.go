@@ -12,5 +12,6 @@ type Event struct {
 	Description        string        `json:"info"`
 	ParticipantsNumber uint32        `json:"participants_number"`
 	DateTime           time.Time     `json:"date_time"`
+	Status             string        `json:"status"`
 	Report             report.Report `json:"report"`
 }
