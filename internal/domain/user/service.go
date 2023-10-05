@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"restapi/internal/domain/menu"
 	"restapi/internal/domain/session"
 	"restapi/pkg/auth"
 	"restapi/pkg/hash"
@@ -16,7 +17,7 @@ type Tokens struct {
 }
 
 type Service interface {
-	SignUp(ctx context.Context, dto CreateUserDTO) (user User, err error)
+	SignUp(ctx context.Context, dto CreateUserDTO) (User, error)
 	SignIn(ctx context.Context, login, password string) (Tokens, error)
 	Verify(ctx context.Context, code string) error
 	UserRefresh(ctx context.Context, dto RefreshUserDTO) (Tokens, error)
@@ -24,6 +25,8 @@ type Service interface {
 	CreateSession(ctx context.Context, userID string) (Tokens, error)
 	UpdateSession(ctx context.Context, userID string) (Tokens, error)
 	CreateEvent(ctx context.Context, user User)
+	CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error)
+	AddDrink(ctx context.Context, dto menu.AddDrinkDTO) (menu.Menu, error)
 }
 
 type service struct {
@@ -173,4 +176,29 @@ func (s *service) UpdateSession(ctx context.Context, userID string) (Tokens, err
 
 func (s *service) CreateEvent(ctx context.Context, user User) {
 
+}
+
+// Должно выполняться на клиенте пользователя
+func (s *service) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
+	newMenu := menu.NewMenu(dto.Drinks)
+	newMenu.UpdateTotalCost()
+
+	return newMenu, nil
+}
+
+// Должно выполняться на клиенте пользователя
+// Добавляет напиток в меню (в указанную группу) и обновляет total_cost
+func (s *service) AddDrink(ctx context.Context, dto menu.AddDrinkDTO) (menu.Menu, error) {
+	drinks := make(map[string][]menu.Drink, 0)
+
+	emptyMeny := menu.Menu{
+		Drinks: drinks,
+	}
+
+	err := emptyMeny.AddDrink(dto)
+	if err != nil {
+		return menu.Menu{}, err
+	}
+
+	return emptyMeny, nil
 }

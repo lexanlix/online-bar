@@ -2,45 +2,52 @@ package menu
 
 // Drinks.Group constants
 const (
-	Cocktails  = "cocktail"
-	Shots      = "shot"
-	NonAlco    = "nonAlco"
-	Beer       = "beer"
-	StrongAlco = "strongAlco"
+	Cocktails  = "cocktails"
+	Shots      = "shots"
+	NonAlco    = "nonAlcos"
+	Beer       = "beers"
+	StrongAlco = "strongAlcos"
 )
 
-type Menu interface {
-	AddDrink(newDrink Drink) error
-	UpdateTotalCost()
-}
+// type Menu interface {
+// 	AddDrink(dto AddDrinkDTO) error
+// 	UpdateTotalCost()
+// }
 
-type menu struct {
-	Drinks    []Drink `json:"drinks"`
-	TotalCost uint32  `json:"total_cost"`
+type Menu struct {
+	Drinks    map[string][]Drink `json:"drinks"`
+	TotalCost uint32             `json:"total_cost"`
 }
 
 type Drink struct {
 	ID    uint32 `json:"id"`
 	Name  string `json:"name"`
-	Group string `json:"group"`
 	Price uint32 `json:"price"`
 }
 
-func NewMenu(drinks []Drink) Menu {
-	return &menu{
+func NewMenu(drinks map[string][]Drink) Menu {
+	return Menu{
 		Drinks: drinks,
 	}
 }
 
-func (m *menu) AddDrink(newDrink Drink) error {
-	m.Drinks = append(m.Drinks, newDrink)
+func (m *Menu) AddDrink(dto AddDrinkDTO) error {
+	newDrink := Drink{
+		ID:    dto.ID,
+		Name:  dto.Name,
+		Price: dto.Price,
+	}
+
+	m.Drinks[dto.Group] = append(m.Drinks[dto.Group], newDrink)
 	m.UpdateTotalCost()
 
 	return nil
 }
 
-func (m *menu) UpdateTotalCost() {
-	for _, drink := range m.Drinks {
-		m.TotalCost += drink.Price
+func (m *Menu) UpdateTotalCost() {
+	for group := range m.Drinks {
+		for _, drink := range m.Drinks[group] {
+			m.TotalCost += drink.Price
+		}
 	}
 }

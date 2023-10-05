@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"restapi/internal/adapters"
 	"restapi/internal/apperror"
+	"restapi/internal/domain/menu"
 	"restapi/internal/domain/user"
 
 	"restapi/pkg/logging"
@@ -18,14 +19,16 @@ import (
 var _ adapters.Handler = &handler{}
 
 const (
-	usersURL        = "/api/users"
-	userURL         = "/api/users/:uuid"
-	registerUserURL = "/api/register"
-	signInURL       = "/api/signIn"
-	refreshURL      = "/api/auth/refresh"
-	updateUserURL   = "/api/update"
-	pUpdateUserURL  = "/api/update/part"
-	deleteUserURL   = "/api/user/delete"
+	getUsersURL    = "/api/users"
+	getUserURL     = "/api/users/:uuid"
+	signUpURL      = "/api/register"
+	signInURL      = "/api/login"
+	refreshURL     = "/api/auth/refresh"
+	updateUserURL  = "/api/update"
+	pUpdateUserURL = "/api/update/part"
+	deleteUserURL  = "/api/user/delete"
+	createMenuURL  = "/api/user/menu/new"
+	addDrinkURL    = "/api/user/menu/add"
 )
 
 type tokenResponse struct {
@@ -47,18 +50,20 @@ func NewHandler(logger *logging.Logger, service user.Service) adapters.Handler {
 
 func (h *handler) Register(router *httprouter.Router) {
 
-	router.HandlerFunc(http.MethodPost, registerUserURL, apperror.Middleware(h.UserSignUp))
+	router.HandlerFunc(http.MethodPost, signUpURL, apperror.Middleware(h.SignUp))
 	router.HandlerFunc(http.MethodPost, signInURL, apperror.Middleware(h.SignIn))
 	router.HandlerFunc(http.MethodPost, refreshURL, apperror.Middleware(h.UserRefresh))
+	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.NewMenu))
+	router.HandlerFunc(http.MethodPost, addDrinkURL, apperror.Middleware(h.AddDrink))
 
 	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
-	router.HandlerFunc(http.MethodGet, userURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
-	router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
-	router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.Verify(h.PartiallyUpdateUser)))
+	//router.HandlerFunc(http.MethodGet, getUserURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
+	//router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
+	//router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.Verify(h.PartiallyUpdateUser)))
 	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
 }
 
-func (h *handler) UserSignUp(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) SignUp(w http.ResponseWriter, r *http.Request) error {
 	var dto user.CreateUserDTO
 
 	err := json.NewDecoder(r.Body).Decode(&dto)
@@ -198,6 +203,54 @@ func (h *handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 
 	w.WriteHeader(200)
 	w.Write([]byte("user is deleted"))
+
+	return nil
+}
+
+func (h *handler) NewMenu(w http.ResponseWriter, r *http.Request) error {
+	var inp menu.CreateMenuDTO
+
+	err := json.NewDecoder(r.Body).Decode(&inp)
+	if err != nil {
+		return err
+	}
+
+	menu, err := h.service.CreateMenu(context.TODO(), inp)
+	if err != nil {
+		return err
+	}
+
+	menuBytes, err := json.Marshal(menu)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(menuBytes)
+
+	return nil
+}
+
+func (h *handler) AddDrink(w http.ResponseWriter, r *http.Request) error {
+	var inp menu.AddDrinkDTO
+
+	err := json.NewDecoder(r.Body).Decode(&inp)
+	if err != nil {
+		return err
+	}
+
+	menu, err := h.service.AddDrink(context.TODO(), inp)
+	if err != nil {
+		return err
+	}
+
+	menuBytes, err := json.Marshal(menu)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(menuBytes)
 
 	return nil
 }

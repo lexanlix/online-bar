@@ -2,13 +2,13 @@ package bar
 
 import (
 	"restapi/internal/domain/menu"
-	"restapi/internal/domain/order"
 )
 
 type Bar struct {
-	ID          string        `json:"id"`
-	EventID     string        `json:"event_id"`
-	Description string        `json:"description"`
-	Orders      []order.Order `json:"orders"`
-	Menu        menu.Menu     `json:"-"`
+	ID          string    `json:"id"`
+	EventID     string    `json:"event_id"`
+	Description string    `json:"info"`
+	Orders      []string  `json:"orders"` // массив id-ов заказов
+	Menu        menu.Menu `json:"menu"`
+	Status      string    `json:"status"`
 }

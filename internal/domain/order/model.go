@@ -10,6 +10,6 @@ type Order struct {
 }
 
 type OrderBody struct {
-	DrinksID []string
-	Comment  string
+	DrinksID []string `json:"drinks_id"`
+	Comment  string   `json:"comment"`
 }
