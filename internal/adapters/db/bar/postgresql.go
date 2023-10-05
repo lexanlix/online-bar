@@ -22,9 +22,9 @@ type repository struct {
 func (r *repository) CreateBar(ctx context.Context, dto bar.CreateBarDTO) (uint32, error) {
 	q := `
 	INSERT INTO bars
-    	(event_id, description, orders, status)
+    	(event_id, description, status)
 	VALUES
-    	($1, $2, $3, $4)
+    	($1, $2, $3)
 	RETURNING
     	id
 	`
@@ -32,7 +32,7 @@ func (r *repository) CreateBar(ctx context.Context, dto bar.CreateBarDTO) (uint3
 
 	var barID uint32
 
-	row := r.client.QueryRow(ctx, q, dto.EventID, dto.Description, dto.Orders, statusOpened)
+	row := r.client.QueryRow(ctx, q, dto.EventID, dto.Description, statusOpened)
 	err := row.Scan(&barID)
 	if err != nil {
 		return 0, err
@@ -46,7 +46,7 @@ func (r *repository) CloseBar(ctx context.Context, dto bar.CloseBarDTO) (string,
 	q := `
 	UPDATE bars
 	SET
-    	status = %2
+    	status = $2
 	WHERE
     	id = $1
 	RETURNING status

@@ -3,10 +3,9 @@ package bar
 import "restapi/internal/domain/menu"
 
 type CreateBarDTO struct {
-	EventID       string `json:"event_id"`
-	Description   string `json:"info"`
-	Orders        string `json:"orders"`
-	CreateMenuDTO menu.CreateMenuDTO
+	EventID       string             `json:"event_id"`
+	Description   string             `json:"info"`
+	CreateMenuDTO menu.CreateMenuDTO `json:"menu"`
 }
 
 type RespCreateBar struct {
@@ -19,9 +18,9 @@ type CloseBarDTO struct {
 }
 
 type UpdateBarDTO struct {
-	ID          uint32 `json:"id"`
-	Description string `json:"info"`
-	Orders      string `json:"orders"`
+	ID          uint32   `json:"id"`
+	Description string   `json:"info"`
+	Orders      []string `json:"orders"`
 }
 
 type GetOrdersDTO struct {

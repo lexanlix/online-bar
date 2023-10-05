@@ -10,10 +10,13 @@ import (
 	"path/filepath"
 	event_api "restapi/internal/adapters/api/event"
 	user_api "restapi/internal/adapters/api/user"
+	bar_api "restapi/internal/adapters/bar"
+	bar_db "restapi/internal/adapters/db/bar"
 	event_db "restapi/internal/adapters/db/event"
 	session_db "restapi/internal/adapters/db/session"
 	user_db "restapi/internal/adapters/db/user"
 	"restapi/internal/config"
+	"restapi/internal/domain/bar"
 	"restapi/internal/domain/event"
 	"restapi/internal/domain/user"
 	"restapi/pkg/auth"
@@ -55,6 +58,9 @@ func main() {
 	logger.Info("creating event repository")
 	eventRepository := event_db.NewRepository(postgreSQLClient, logger)
 
+	logger.Info("creating bar repository")
+	barRepository := bar_db.NewRepository(postgreSQLClient, logger)
+
 	logger.Info("register user service")
 	userService := user.NewService(userRepository, sessionRepository, logger, hasher, tokenManager,
 		cfg.Tokens.AccessTokenTTL, cfg.Tokens.RefreshTokenTTL)
@@ -62,14 +68,21 @@ func main() {
 	logger.Info("register event service")
 	eventService := event.NewService(eventRepository, logger)
 
+	logger.Info("register bar service")
+	barService := bar.NewService(barRepository, logger)
+
 	logger.Info("register user handler")
 	userHandler := user_api.NewHandler(logger, userService)
 
 	logger.Info("register event handler")
 	eventHandler := event_api.NewHandler(logger, eventService)
 
+	logger.Info("register bar handler")
+	barHandler := bar_api.NewHandler(logger, barService)
+
 	userHandler.Register(router)
 	eventHandler.Register(router)
+	barHandler.Register(router)
 
 	start(router, cfg)
 }

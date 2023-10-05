@@ -56,7 +56,7 @@ func (h *handler) CreateBar(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	barID, menu, err2 := h.service.OpenBar(context.TODO(), dto)
-	if err != nil {
+	if err2 != nil {
 		return err2
 	}
 
