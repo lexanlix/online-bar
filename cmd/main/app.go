@@ -8,9 +8,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	bar_api "restapi/internal/adapters/api/bar"
 	event_api "restapi/internal/adapters/api/event"
 	user_api "restapi/internal/adapters/api/user"
-	bar_api "restapi/internal/adapters/bar"
 	bar_db "restapi/internal/adapters/db/bar"
 	event_db "restapi/internal/adapters/db/event"
 	session_db "restapi/internal/adapters/db/session"
@@ -72,7 +72,7 @@ func main() {
 	barService := bar.NewService(barRepository, logger)
 
 	logger.Info("register user handler")
-	userHandler := user_api.NewHandler(logger, userService)
+	userHandler := user_api.NewHandler(logger, userService, eventService, barService)
 
 	logger.Info("register event handler")
 	eventHandler := event_api.NewHandler(logger, eventService)

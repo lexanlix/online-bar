@@ -7,6 +7,7 @@ import (
 	"restapi/internal/adapters"
 	"restapi/internal/apperror"
 	"restapi/internal/domain/bar"
+	"strconv"
 
 	"restapi/pkg/logging"
 
@@ -37,14 +38,13 @@ func NewHandler(logger *logging.Logger, service bar.Service) adapters.Handler {
 }
 
 func (h *handler) Register(router *httprouter.Router) {
-	router.HandlerFunc(http.MethodPost, createBarURL, apperror.Middleware(h.CreateBar))
+	//router.HandlerFunc(http.MethodPost, createBarURL, apperror.Middleware(h.CreateBar))
 	router.HandlerFunc(http.MethodDelete, closeBarURL, apperror.Middleware(h.CloseBar))
-	router.HandlerFunc(http.MethodPut, getEventOrdersURL, apperror.Middleware(h.GetEventOrders))
-	router.HandlerFunc(http.MethodPut, getBarOrdersURL, apperror.Middleware(h.GetBarOrders))
+	router.HandlerFunc(http.MethodGet, getEventOrdersURL, apperror.Middleware(h.GetEventOrders))
+	router.HandlerFunc(http.MethodGet, getBarOrdersURL, apperror.Middleware(h.GetBarOrders))
 	router.HandlerFunc(http.MethodPost, updateBarURL, apperror.Middleware(h.UpdateBar))
 
 	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
-	//router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
 }
 
 func (h *handler) CreateBar(w http.ResponseWriter, r *http.Request) error {
@@ -98,10 +98,7 @@ func (h *handler) CloseBar(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) GetEventOrders(w http.ResponseWriter, r *http.Request) error {
 	var dto bar.GetOrdersDTO
 
-	err := json.NewDecoder(r.Body).Decode(&dto)
-	if err != nil {
-		return err
-	}
+	dto.EventID = r.Header.Get("event_id")
 
 	allEventOrders, err := h.service.GetOrders(context.TODO(), dto)
 	if err != nil {
@@ -122,10 +119,13 @@ func (h *handler) GetEventOrders(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) GetBarOrders(w http.ResponseWriter, r *http.Request) error {
 	var dto bar.GetBarOrdersDTO
 
-	err := json.NewDecoder(r.Body).Decode(&dto)
+	id, err := strconv.Atoi(r.Header.Get("bar_id"))
 	if err != nil {
-		return err
+		return apperror.NewAppError(err, "wrong data", err.Error(), "US-000009")
 	}
+
+	dto.ID = uint32(id)
+	dto.EventID = r.Header.Get("event_id")
 
 	barOrders, err := h.service.GetBarOrders(context.TODO(), dto)
 	if err != nil {
