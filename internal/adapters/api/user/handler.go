@@ -112,6 +112,27 @@ func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	cookie1 := http.Cookie{
+		Name:     "AccessToken",
+		Value:    res.AccessToken,
+		Path:     "http://localhost:10000/api/login",
+		MaxAge:   86400,
+		HttpOnly: true,
+		Secure:   true,
+	}
+
+	cookie2 := http.Cookie{
+		Name:     "RefreshToken",
+		Value:    res.RefreshToken,
+		Path:     "http://localhost:10000/api/login",
+		MaxAge:   86400,
+		HttpOnly: true,
+		Secure:   true,
+	}
+
+	http.SetCookie(w, &cookie1)
+	http.SetCookie(w, &cookie2)
+
 	tokenResponse := tokenResponse{
 		AccessToken:  res.AccessToken,
 		RefreshToken: res.RefreshToken,
@@ -131,14 +152,18 @@ func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) Verify(protectedHandler apperror.AppHandler) apperror.AppHandler {
 
 	return func(w http.ResponseWriter, r *http.Request) error {
-		code := r.Header.Get("Bearer")
+		cookie, err := r.Cookie("AccessToken")
+		if err != nil {
+			h.logger.Errorf("cookie error: %v", err)
+			return apperror.ErrUnauthorized
+		}
 
-		if code == "" {
+		if cookie.Value == "" {
 			h.logger.Errorf("access token is empty")
 			return apperror.ErrUnauthorized
 		}
 
-		err := h.service.Verify(context.TODO(), code)
+		err = h.service.Verify(context.TODO(), cookie.Value)
 		if err != nil {
 			h.logger.Errorf("access token is wrong: %v", err)
 			return apperror.ErrUnauthorized
@@ -202,7 +227,6 @@ func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) er
 }
 
 func (h *handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
-
 	var deletingUser user.DeleteUserDTO
 
 	err := json.NewDecoder(r.Body).Decode(&deletingUser)
