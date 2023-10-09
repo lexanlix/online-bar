@@ -35,7 +35,7 @@ func (r *repository) Create(ctx context.Context, dto user.CreateUserDTO) (usr us
 		return user.User{}, err
 	}
 
-	if err := r.client.QueryRow(ctx, q, dto.Name, dto.Login, passwordHash, dto.OneTimeCode).Scan(&usr.ID,
+	if err := r.client.QueryRow(ctx, q, dto.Name, dto.Login, passwordHash, "").Scan(&usr.ID,
 		&usr.Name, &usr.Login, &usr.PasswordHash); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
