@@ -21,13 +21,12 @@ import (
 var _ adapters.Handler = &handler{}
 
 const (
-	getUsersURL    = "/api/users"
-	getUserURL     = "/api/users/:uuid"
+	getUserURL     = "/api/user"
 	signUpURL      = "/api/register"
 	signInURL      = "/api/login"
 	refreshURL     = "/api/auth/refresh"
-	updateUserURL  = "/api/update"
-	pUpdateUserURL = "/api/update/part"
+	updateUserURL  = "/api/user/update"
+	pUpdateUserURL = "/api/user/update/part"
 	deleteUserURL  = "/api/user/delete"
 	createEventURL = "/api/event/create"
 	createBarURL   = "/api/bar/create"
@@ -35,11 +34,6 @@ const (
 	createMenuURL = "/api/user/menu/new"
 	addDrinkURL   = "/api/user/menu/add"
 )
-
-type tokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
 
 type handler struct {
 	eventService event.Service
@@ -62,16 +56,16 @@ func (h *handler) Register(router *httprouter.Router) {
 
 	router.HandlerFunc(http.MethodPost, signUpURL, apperror.Middleware(h.SignUp))
 	router.HandlerFunc(http.MethodPost, signInURL, apperror.Middleware(h.SignIn))
-	router.HandlerFunc(http.MethodPost, refreshURL, apperror.Middleware(h.UserRefresh))
+	router.HandlerFunc(http.MethodGet, refreshURL, apperror.Middleware(h.UserRefresh))
 
 	// for testing menu functions
 	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.NewMenu))
 	router.HandlerFunc(http.MethodPost, addDrinkURL, apperror.Middleware(h.AddDrink))
 
 	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
-	//router.HandlerFunc(http.MethodGet, getUserURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
-	//router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
-	//router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.Verify(h.PartiallyUpdateUser)))
+	router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.Verify(h.PartiallyUpdateUser)))
+	router.HandlerFunc(http.MethodGet, getUserURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
+	router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
 	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
 	router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.Verify(h.CreateEvent)))
 	router.HandlerFunc(http.MethodPost, createBarURL, apperror.Middleware(h.Verify(h.CreateBar)))
@@ -98,7 +92,7 @@ func (h *handler) SignUp(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// В ответе возвращаем токены в json
+// В ответе возвращаем токены в cookie
 func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 	var inp user.SignInUserDTO
 
@@ -115,8 +109,8 @@ func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 	cookie1 := http.Cookie{
 		Name:     "AccessToken",
 		Value:    res.AccessToken,
-		Path:     "http://localhost:10000/api/login",
-		MaxAge:   86400,
+		Path:     "http://localhost:10000/api/",
+		MaxAge:   7200,
 		HttpOnly: true,
 		Secure:   true,
 	}
@@ -124,8 +118,8 @@ func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 	cookie2 := http.Cookie{
 		Name:     "RefreshToken",
 		Value:    res.RefreshToken,
-		Path:     "http://localhost:10000/api/login",
-		MaxAge:   86400,
+		Path:     "http://localhost:10000/api/",
+		MaxAge:   2592000,
 		HttpOnly: true,
 		Secure:   true,
 	}
@@ -133,18 +127,8 @@ func (h *handler) SignIn(w http.ResponseWriter, r *http.Request) error {
 	http.SetCookie(w, &cookie1)
 	http.SetCookie(w, &cookie2)
 
-	tokenResponse := tokenResponse{
-		AccessToken:  res.AccessToken,
-		RefreshToken: res.RefreshToken,
-	}
-
-	respBytes, err := json.Marshal(tokenResponse)
-	if err != nil {
-		return err
-	}
-
 	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
+	w.Write([]byte("user is signed in"))
 
 	return nil
 }
@@ -173,13 +157,27 @@ func (h *handler) Verify(protectedHandler apperror.AppHandler) apperror.AppHandl
 	}
 }
 
-// В ответе возвращаем токены в json
+// В ответе возвращаем токены в cookie
 func (h *handler) UserRefresh(w http.ResponseWriter, r *http.Request) error {
-	var dto user.RefreshUserDTO
-
-	err := json.NewDecoder(r.Body).Decode(&dto)
+	cookie1, err := r.Cookie("AccessToken")
 	if err != nil {
-		return err
+		h.logger.Errorf("cookie error: %v", err)
+		return apperror.ErrUnauthorized
+	}
+
+	cookie2, err := r.Cookie("RefreshToken")
+	if err != nil {
+		h.logger.Errorf("cookie error: %v", err)
+		return apperror.ErrUnauthorized
+	}
+
+	if cookie2.Value == "" {
+		h.logger.Errorf("access token is empty")
+		return apperror.ErrUnauthorized
+	}
+
+	dto := user.RefreshUserDTO{
+		RefreshToken: cookie2.Value,
 	}
 
 	res, err := h.service.UserRefresh(context.TODO(), dto)
@@ -187,41 +185,77 @@ func (h *handler) UserRefresh(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	tokenResponse := tokenResponse{
-		AccessToken:  res.AccessToken,
-		RefreshToken: res.RefreshToken,
-	}
+	cookie1.Value = res.AccessToken
+	cookie1.MaxAge = 7200 // 2 hours
 
-	respBytes, err := json.Marshal(tokenResponse)
-	if err != nil {
-		return err
-	}
+	cookie2.Value = res.RefreshToken
+	cookie2.MaxAge = 2592000 // 30 days
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
+	w.Write([]byte("user is refreshed"))
 
 	return nil
 }
 
 func (h *handler) GetUserByUUID(w http.ResponseWriter, r *http.Request) error {
-	// w.WriteHeader(200)
-	// w.Write([]byte("this is user by uuid"))
 
-	// return nil
+	userID := r.URL.Query().Get("id")
 
-	return apperror.NewAppError(nil, "test", "test", "t123")
-}
+	if userID == "" {
+		return apperror.NewAppError(nil, "query param is empty", "param userID is empty", "US-000015")
+	}
 
-func (h *handler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
-	w.WriteHeader(204)
-	w.Write([]byte("this is update user"))
+	user, err := h.service.GetUserByUUID(context.TODO(), userID)
+	if err != nil {
+		return err
+	}
+
+	userBytes, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(200)
+	w.Write(userBytes)
 
 	return nil
 }
 
-func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) error {
+func (h *handler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
+	var dto user.UpdateUserDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	err = h.service.UpdateUser(context.TODO(), dto)
+	if err != nil {
+		return err
+	}
+
 	w.WriteHeader(204)
-	w.Write([]byte("this is partially update user"))
+	w.Write([]byte("user is updated"))
+
+	return nil
+}
+
+// TODO
+func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) error {
+	var dto user.PartUpdateUserDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	err = h.service.PartUpdateUser(context.TODO(), dto)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(204)
+	w.Write([]byte("user is updated"))
 
 	return nil
 }

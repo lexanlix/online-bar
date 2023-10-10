@@ -21,6 +21,9 @@ type Service interface {
 	SignIn(ctx context.Context, login, password string) (Tokens, error)
 	Verify(ctx context.Context, code string) error
 	UserRefresh(ctx context.Context, dto RefreshUserDTO) (Tokens, error)
+	UpdateUser(ctx context.Context, dto UpdateUserDTO) error
+	PartUpdateUser(ctx context.Context, dto PartUpdateUserDTO) error
+	GetUserByUUID(ctx context.Context, userID string) (User, error)
 	DeleteAccount(ctx context.Context, deleteDTO DeleteUserDTO) error
 	CreateSession(ctx context.Context, userID string) (Tokens, error)
 	UpdateSession(ctx context.Context, userID string) (Tokens, error)
@@ -97,6 +100,7 @@ func (s *service) Verify(ctx context.Context, code string) error {
 }
 
 func (s *service) UserRefresh(ctx context.Context, dto RefreshUserDTO) (Tokens, error) {
+	s.logger.Infof("refreshing user")
 
 	userID, err := s.sessionRepo.GetByRefreshToken(ctx, dto.RefreshToken)
 	if err != nil {
@@ -104,6 +108,65 @@ func (s *service) UserRefresh(ctx context.Context, dto RefreshUserDTO) (Tokens, 
 	}
 
 	return s.UpdateSession(ctx, userID)
+}
+
+func (s *service) UpdateUser(ctx context.Context, dto UpdateUserDTO) error {
+	s.logger.Infof("updating user %s", dto.ID)
+
+	passwordHash, err := s.hasher.Hash(dto.Password)
+	if err != nil {
+		return err
+	}
+
+	updateUser := User{
+		ID:           dto.ID,
+		Name:         dto.Name,
+		Login:        dto.Login,
+		PasswordHash: passwordHash,
+		OneTimeCode:  dto.OneTimeCode,
+	}
+
+	err = s.repository.Update(ctx, updateUser)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Infof("updating user %s", dto.ID)
+	return nil
+}
+
+func (s *service) PartUpdateUser(ctx context.Context, dto PartUpdateUserDTO) error {
+	s.logger.Infof("updating user '%s' field '%s'", dto.ID, dto.Key)
+
+	var err error
+
+	if dto.Key == "password" {
+		dto.Key = "password_hash"
+		dto.Value, err = s.hasher.Hash(dto.Value)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = s.repository.PartUpdate(ctx, dto)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Infof("user '%s' field '%s' is updated", dto.ID, dto.Key)
+	return nil
+}
+
+func (s *service) GetUserByUUID(ctx context.Context, userID string) (User, error) {
+	s.logger.Infof("getting user %s", userID)
+
+	user, err := s.repository.GetByUUID(ctx, userID)
+	if err != nil {
+		return User{}, err
+	}
+
+	s.logger.Infof("user %s is received", user.Name)
+	return user, nil
 }
 
 func (s *service) DeleteAccount(ctx context.Context, deleteDTO DeleteUserDTO) error {
@@ -174,6 +237,7 @@ func (s *service) UpdateSession(ctx context.Context, userID string) (Tokens, err
 	return res, err
 }
 
+// TODO
 func (s *service) CreateEvent(ctx context.Context, user User) {
 
 }

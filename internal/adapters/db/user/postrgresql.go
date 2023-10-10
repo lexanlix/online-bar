@@ -105,6 +105,37 @@ func (r *repository) GetByCredentials(ctx context.Context, login, passwordHash s
 	return usr, nil
 }
 
+func (r *repository) GetByUUID(ctx context.Context, userID string) (user.User, error) {
+	q := `
+	SELECT 
+		name, login, password_hash, one_time_code
+	FROM 
+		public.users
+	WHERE 
+		id = $1
+	`
+	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
+
+	var usr user.User
+
+	err := r.client.QueryRow(ctx, q, userID).Scan(&usr.Name, &usr.Login, &usr.PasswordHash, &usr.OneTimeCode)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return user.User{}, newErr
+		}
+
+		return user.User{}, err
+	}
+
+	usr.ID = userID
+
+	return usr, nil
+}
+
 func (r *repository) FindAll(ctx context.Context) ([]user.User, error) {
 	// в следующий раз тут будет множество сортировок и опций
 
@@ -175,6 +206,74 @@ func (r *repository) Update(ctx context.Context, user user.User) error {
 
 	err := r.client.QueryRow(ctx, q, user.ID, user.Name, user.Login, user.PasswordHash,
 		user.OneTimeCode).Scan(&user.ID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return newErr
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) PartUpdate(ctx context.Context, dto user.PartUpdateUserDTO) error {
+	var q string
+
+	switch dto.Key {
+	case "name":
+		{
+			q = `
+		UPDATE users
+		SET 
+			name = $2
+		WHERE 
+			id = $1
+		RETURNING id
+		`
+		}
+	case "login":
+		{
+			q = `
+			UPDATE users
+			SET 
+				login = $2
+			WHERE 
+				id = $1
+			RETURNING id
+			`
+		}
+	case "password_hash":
+		{
+			q = `
+		UPDATE users
+		SET 
+			password_hash = $2
+		WHERE 
+			id = $1
+		RETURNING id
+		`
+		}
+	case "one_time_code":
+		{
+			q = `
+			UPDATE users
+			SET 
+				one_time_code = $2
+			WHERE 
+				id = $1
+			RETURNING id
+			`
+		}
+	}
+
+	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
+
+	err := r.client.QueryRow(ctx, q, dto.ID, dto.Value).Scan(&dto.ID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
