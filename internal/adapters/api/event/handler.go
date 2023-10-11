@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"restapi/internal/adapters"
 	"restapi/internal/apperror"
+	"restapi/internal/domain/bar"
 	"restapi/internal/domain/event"
+	"restapi/internal/domain/user"
 
 	"restapi/pkg/logging"
 
@@ -17,63 +19,69 @@ import (
 var _ adapters.Handler = &handler{}
 
 const (
-	createEventURL     = "/api/event/create"
-	completeEventURL   = "/api/event/complete"
+	createEventURL = "/api/event/create"
+
 	getEventsByHostURL = "/api/user/events"
 	getEventByIDurl    = "/api/user/event"
-	updateEventURL     = "/api/event/update"
+	getEventOrdersURL  = "/api/event/orders"
+
+	completeEventURL = "/api/event/complete"
+	updateEventURL   = "/api/event/update"
 )
 
 type handler struct {
-	service event.Service
-	logger  *logging.Logger
+	service     event.Service
+	userService user.Service
+	barService  bar.Service
+	logger      *logging.Logger
 }
 
-func NewHandler(logger *logging.Logger, service event.Service) adapters.Handler {
+func NewHandler(logger *logging.Logger, service event.Service, userService user.Service,
+	barService bar.Service) adapters.Handler {
 	return &handler{
-		service: service,
-		logger:  logger,
+		service:     service,
+		userService: userService,
+		barService:  barService,
+		logger:      logger,
 	}
 }
 
 func (h *handler) Register(router *httprouter.Router) {
-	//router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.CreateEvent))
-	router.HandlerFunc(http.MethodDelete, completeEventURL, apperror.Middleware(h.CompleteEvent))
-	router.HandlerFunc(http.MethodGet, getEventsByHostURL, apperror.Middleware(h.GetAllByHostID))
-	router.HandlerFunc(http.MethodGet, getEventByIDurl, apperror.Middleware(h.GetByID))
-	router.HandlerFunc(http.MethodPut, updateEventURL, apperror.Middleware(h.UpdateEvent))
-
-	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
-	//router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
+	router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.Verify(h.CreateEvent)))
+	router.HandlerFunc(http.MethodDelete, completeEventURL, apperror.Middleware(h.Verify(h.CompleteEvent)))
+	router.HandlerFunc(http.MethodGet, getEventsByHostURL, apperror.Middleware(h.Verify(h.GetAllByHostID)))
+	router.HandlerFunc(http.MethodGet, getEventByIDurl, apperror.Middleware(h.Verify(h.GetByID)))
+	router.HandlerFunc(http.MethodGet, getEventOrdersURL, apperror.Middleware(h.Verify(h.GetEventOrders)))
+	router.HandlerFunc(http.MethodPut, updateEventURL, apperror.Middleware(h.Verify(h.UpdateEvent)))
 }
 
-// func (h *handler) CreateEvent(w http.ResponseWriter, r *http.Request) error {
-// 	var dto event.CreateEventDTO
+func (h *handler) CreateEvent(w http.ResponseWriter, r *http.Request) error {
+	var dto event.CreateEventDTO
 
-// 	err := json.NewDecoder(r.Body).Decode(&dto)
-// 	if err != nil {
-// 		return err
-// 	}
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
 
-// 	eventID, err2 := h.service.NewEvent(context.TODO(), dto)
-// 	if err != nil {
-// 		return err2
-// 	}
+	eventID, err2 := h.service.NewEvent(context.TODO(), dto)
+	if err != nil {
+		return err2
+	}
 
-// 	resp := event.RespCreateEvent{
-// 		ID: eventID,
-// 	}
+	resp := event.RespCreateEvent{
+		ID: eventID,
+	}
 
-// 	respBytes, err := json.Marshal(resp)
-// 	if err != nil {
-// 		return err
-// 	}
+	respBytes, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
 
-// 	w.WriteHeader(http.StatusOK)
-// 	w.Write(respBytes)
+	w.WriteHeader(http.StatusOK)
+	w.Write(respBytes)
 
-// 	return nil
-// }
+	return nil
+}
 
 func (h *handler) CompleteEvent(w http.ResponseWriter, r *http.Request) error {
 	var dto event.CompleteEventDTO
@@ -97,7 +105,11 @@ func (h *handler) CompleteEvent(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) GetAllByHostID(w http.ResponseWriter, r *http.Request) error {
 	var dto event.FindAllEventsDTO
 
-	dto.HostID = r.Header.Get("user_id")
+	dto.HostID = r.URL.Query().Get("user_id")
+
+	if dto.HostID == "" {
+		return apperror.NewAppError(nil, "query param is empty", "param user_id is empty", "US-000015")
+	}
 
 	allUserEvents, err := h.service.FindAllUserEvents(context.TODO(), dto)
 	if err != nil {
@@ -118,8 +130,16 @@ func (h *handler) GetAllByHostID(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) GetByID(w http.ResponseWriter, r *http.Request) error {
 	var dto event.FindEventDTO
 
-	dto.ID = r.Header.Get("event_id")
-	dto.HostID = r.Header.Get("user_id")
+	dto.ID = r.URL.Query().Get("event_id")
+	dto.HostID = r.URL.Query().Get("user_id")
+
+	if dto.HostID == "" || dto.ID == "" {
+		if dto.HostID == "" {
+			return apperror.NewAppError(nil, "query param is empty", "param user_id is empty", "US-000015")
+		} else {
+			return apperror.NewAppError(nil, "query param is empty", "param event_id is empty", "US-000015")
+		}
+	}
 
 	userEvent, err := h.service.FindEvent(context.TODO(), dto)
 	if err != nil {
@@ -133,6 +153,31 @@ func (h *handler) GetByID(w http.ResponseWriter, r *http.Request) error {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(eventBytes)
+
+	return nil
+}
+
+func (h *handler) GetEventOrders(w http.ResponseWriter, r *http.Request) error {
+	var dto bar.GetOrdersDTO
+
+	dto.EventID = r.URL.Query().Get("event_id")
+
+	if dto.EventID == "" {
+		return apperror.NewAppError(nil, "query param is empty", "param event_id is empty", "US-000015")
+	}
+
+	allEventOrders, err := h.barService.GetOrders(context.TODO(), dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong id", err.Error(), "US-000009")
+	}
+
+	allBytes, err := json.Marshal(allEventOrders)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(allBytes)
 
 	return nil
 }
@@ -154,4 +199,28 @@ func (h *handler) UpdateEvent(w http.ResponseWriter, r *http.Request) error {
 	w.Write([]byte("event is updated"))
 
 	return nil
+}
+
+func (h *handler) Verify(protectedHandler apperror.AppHandler) apperror.AppHandler {
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		cookie, err := r.Cookie("AccessToken")
+		if err != nil {
+			h.logger.Errorf("cookie error: %v", err)
+			return apperror.ErrUnauthorized
+		}
+
+		if cookie.Value == "" {
+			h.logger.Errorf("access token is empty")
+			return apperror.ErrUnauthorized
+		}
+
+		err = h.userService.Verify(context.TODO(), cookie.Value)
+		if err != nil {
+			h.logger.Errorf("access token is wrong: %v", err)
+			return apperror.ErrUnauthorized
+		}
+
+		return protectedHandler(w, r)
+	}
 }

@@ -21,15 +21,14 @@ import (
 var _ adapters.Handler = &handler{}
 
 const (
+	signUpURL  = "/api/register"
+	signInURL  = "/api/login"
+	refreshURL = "/api/auth/refresh"
+
 	getUserURL     = "/api/user"
-	signUpURL      = "/api/register"
-	signInURL      = "/api/login"
-	refreshURL     = "/api/auth/refresh"
 	updateUserURL  = "/api/user/update"
 	pUpdateUserURL = "/api/user/update/part"
 	deleteUserURL  = "/api/user/delete"
-	createEventURL = "/api/event/create"
-	createBarURL   = "/api/bar/create"
 
 	createMenuURL = "/api/user/menu/new"
 	addDrinkURL   = "/api/user/menu/add"
@@ -67,8 +66,6 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodGet, getUserURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
 	router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
 	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
-	router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.Verify(h.CreateEvent)))
-	router.HandlerFunc(http.MethodPost, createBarURL, apperror.Middleware(h.Verify(h.CreateBar)))
 }
 
 func (h *handler) SignUp(w http.ResponseWriter, r *http.Request) error {
@@ -240,7 +237,6 @@ func (h *handler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// TODO
 func (h *handler) PartiallyUpdateUser(w http.ResponseWriter, r *http.Request) error {
 	var dto user.PartUpdateUserDTO
 
@@ -275,63 +271,6 @@ func (h *handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 
 	w.WriteHeader(200)
 	w.Write([]byte("user is deleted"))
-
-	return nil
-}
-
-func (h *handler) CreateEvent(w http.ResponseWriter, r *http.Request) error {
-	var dto event.CreateEventDTO
-
-	err := json.NewDecoder(r.Body).Decode(&dto)
-	if err != nil {
-		return err
-	}
-
-	eventID, err2 := h.eventService.NewEvent(context.TODO(), dto)
-	if err != nil {
-		return err2
-	}
-
-	resp := event.RespCreateEvent{
-		ID: eventID,
-	}
-
-	respBytes, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
-
-	return nil
-}
-
-func (h *handler) CreateBar(w http.ResponseWriter, r *http.Request) error {
-	var dto bar.CreateBarDTO
-
-	err := json.NewDecoder(r.Body).Decode(&dto)
-	if err != nil {
-		return err
-	}
-
-	barID, menu, err2 := h.barService.OpenBar(context.TODO(), dto)
-	if err2 != nil {
-		return err2
-	}
-
-	resp := bar.RespCreateBar{
-		ID:   barID,
-		Menu: menu,
-	}
-
-	respBytes, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
 
 	return nil
 }

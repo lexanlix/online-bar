@@ -2,11 +2,14 @@ package event_db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"restapi/internal/domain/event"
 	"restapi/pkg/client/postgresql"
 	"restapi/pkg/logging"
 	repeatable "restapi/pkg/utils"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -36,6 +39,14 @@ func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO) 
 		dto.DateTime, statusCreated)
 	err := row.Scan(&eventID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return "", newErr
+		}
+
 		return "", err
 	}
 
@@ -58,6 +69,14 @@ func (r *repository) DeleteEvent(ctx context.Context, dto event.CompleteEventDTO
 
 	err := r.client.QueryRow(ctx, q, dto.ID, statusCompleted).Scan(&status)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return "", newErr
+		}
+
 		return "", err
 	}
 
@@ -67,7 +86,7 @@ func (r *repository) DeleteEvent(ctx context.Context, dto event.CompleteEventDTO
 func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEventsDTO) ([]event.Event, error) {
 	q := `
 	SELECT 
-    	id, host_id, name, description, participants_number, date_time
+    	id, host_id, name, description, participants_number, date_time, status
 	FROM 
     	events
 	WHERE
@@ -86,8 +105,16 @@ func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEve
 		var evnt event.Event
 
 		err = rows.Scan(&evnt.ID, &evnt.HostID, &evnt.Name, &evnt.Description,
-			&evnt.ParticipantsNumber, &evnt.DateTime)
+			&evnt.ParticipantsNumber, &evnt.DateTime, &evnt.Status)
 		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				pgErr = err.(*pgconn.PgError)
+				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+				r.logger.Error(newErr)
+				return nil, newErr
+			}
+
 			return nil, err
 		}
 
@@ -104,7 +131,7 @@ func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEve
 func (r *repository) FindOneUserEvent(ctx context.Context, dto event.FindEventDTO) (event.Event, error) {
 	q := `
 	SELECT 
-    	id, host_id, name, description, participants_number, date_time
+    	id, host_id, name, description, participants_number, date_time, status
 	FROM 
     	events
 	WHERE
@@ -115,8 +142,16 @@ func (r *repository) FindOneUserEvent(ctx context.Context, dto event.FindEventDT
 	var evnt event.Event
 
 	err := r.client.QueryRow(ctx, q, dto.ID, dto.HostID).Scan(&evnt.ID, &evnt.HostID, &evnt.Name,
-		&evnt.Description, &evnt.ParticipantsNumber, &evnt.DateTime)
+		&evnt.Description, &evnt.ParticipantsNumber, &evnt.DateTime, &evnt.Status)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return event.Event{}, newErr
+		}
+
 		return event.Event{}, err
 	}
 
@@ -139,6 +174,14 @@ func (r *repository) UpdateEvent(ctx context.Context, dto event.UpdateEventDTO) 
 	err := r.client.QueryRow(ctx, q, dto.ID, dto.Name, dto.Description, dto.ParticipantsNumber,
 		dto.DateTime).Scan(&updatedID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return "", newErr
+		}
+
 		return "", err
 	}
 

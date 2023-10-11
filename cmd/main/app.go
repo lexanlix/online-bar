@@ -75,10 +75,10 @@ func main() {
 	userHandler := user_api.NewHandler(logger, userService, eventService, barService)
 
 	logger.Info("register event handler")
-	eventHandler := event_api.NewHandler(logger, eventService)
+	eventHandler := event_api.NewHandler(logger, eventService, userService, barService)
 
 	logger.Info("register bar handler")
-	barHandler := bar_api.NewHandler(logger, barService)
+	barHandler := bar_api.NewHandler(logger, barService, userService)
 
 	userHandler.Register(router)
 	eventHandler.Register(router)

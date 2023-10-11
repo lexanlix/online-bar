@@ -7,6 +7,7 @@ import (
 	"restapi/internal/adapters"
 	"restapi/internal/apperror"
 	"restapi/internal/domain/bar"
+	"restapi/internal/domain/user"
 	"strconv"
 
 	"restapi/pkg/logging"
@@ -18,33 +19,32 @@ import (
 var _ adapters.Handler = &handler{}
 
 const (
-	createBarURL      = "/api/bar/create"
-	closeBarURL       = "/api/bar/close"
-	getEventOrdersURL = "/api/event/orders"
-	getBarOrdersURL   = "/api/event/bar/orders"
-	updateBarURL      = "/api/bar/update"
+	createBarURL = "/api/bar/create"
+	closeBarURL  = "/api/bar/close"
+	updateBarURL = "/api/bar/update"
+
+	getBarOrdersURL = "/api/bar/orders"
 )
 
 type handler struct {
-	service bar.Service
-	logger  *logging.Logger
+	userService user.Service
+	service     bar.Service
+	logger      *logging.Logger
 }
 
-func NewHandler(logger *logging.Logger, service bar.Service) adapters.Handler {
+func NewHandler(logger *logging.Logger, service bar.Service, userService user.Service) adapters.Handler {
 	return &handler{
-		service: service,
-		logger:  logger,
+		service:     service,
+		userService: userService,
+		logger:      logger,
 	}
 }
 
 func (h *handler) Register(router *httprouter.Router) {
-	//router.HandlerFunc(http.MethodPost, createBarURL, apperror.Middleware(h.CreateBar))
-	router.HandlerFunc(http.MethodDelete, closeBarURL, apperror.Middleware(h.CloseBar))
-	router.HandlerFunc(http.MethodGet, getEventOrdersURL, apperror.Middleware(h.GetEventOrders))
-	router.HandlerFunc(http.MethodGet, getBarOrdersURL, apperror.Middleware(h.GetBarOrders))
-	router.HandlerFunc(http.MethodPost, updateBarURL, apperror.Middleware(h.UpdateBar))
-
-	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
+	router.HandlerFunc(http.MethodPost, createBarURL, apperror.Middleware(h.Verify(h.CreateBar)))
+	router.HandlerFunc(http.MethodDelete, closeBarURL, apperror.Middleware(h.Verify(h.CloseBar)))
+	router.HandlerFunc(http.MethodGet, getBarOrdersURL, apperror.Middleware(h.Verify(h.GetBarOrders)))
+	router.HandlerFunc(http.MethodPost, updateBarURL, apperror.Middleware(h.Verify(h.UpdateBar)))
 }
 
 func (h *handler) CreateBar(w http.ResponseWriter, r *http.Request) error {
@@ -95,37 +95,20 @@ func (h *handler) CloseBar(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *handler) GetEventOrders(w http.ResponseWriter, r *http.Request) error {
-	var dto bar.GetOrdersDTO
-
-	dto.EventID = r.Header.Get("event_id")
-
-	allEventOrders, err := h.service.GetOrders(context.TODO(), dto)
-	if err != nil {
-		return apperror.NewAppError(err, "wrong id", err.Error(), "US-000009")
-	}
-
-	allBytes, err := json.Marshal(allEventOrders)
-	if err != nil {
-		return err
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(allBytes)
-
-	return nil
-}
-
 func (h *handler) GetBarOrders(w http.ResponseWriter, r *http.Request) error {
 	var dto bar.GetBarOrdersDTO
 
-	id, err := strconv.Atoi(r.Header.Get("bar_id"))
+	id, err := strconv.Atoi(r.URL.Query().Get("bar_id"))
 	if err != nil {
 		return apperror.NewAppError(err, "wrong data", err.Error(), "US-000009")
 	}
 
 	dto.ID = uint32(id)
-	dto.EventID = r.Header.Get("event_id")
+	dto.EventID = r.URL.Query().Get("event_id")
+
+	if dto.EventID == "" {
+		return apperror.NewAppError(nil, "query param is empty", "param event_id is empty", "US-000015")
+	}
 
 	barOrders, err := h.service.GetBarOrders(context.TODO(), dto)
 	if err != nil {
@@ -160,4 +143,28 @@ func (h *handler) UpdateBar(w http.ResponseWriter, r *http.Request) error {
 	w.Write([]byte("bar info is updated"))
 
 	return nil
+}
+
+func (h *handler) Verify(protectedHandler apperror.AppHandler) apperror.AppHandler {
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		cookie, err := r.Cookie("AccessToken")
+		if err != nil {
+			h.logger.Errorf("cookie error: %v", err)
+			return apperror.ErrUnauthorized
+		}
+
+		if cookie.Value == "" {
+			h.logger.Errorf("access token is empty")
+			return apperror.ErrUnauthorized
+		}
+
+		err = h.userService.Verify(context.TODO(), cookie.Value)
+		if err != nil {
+			h.logger.Errorf("access token is wrong: %v", err)
+			return apperror.ErrUnauthorized
+		}
+
+		return protectedHandler(w, r)
+	}
 }

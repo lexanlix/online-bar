@@ -2,11 +2,14 @@ package bar_db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"restapi/internal/domain/bar"
 	"restapi/pkg/client/postgresql"
 	"restapi/pkg/logging"
 	repeatable "restapi/pkg/utils"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -35,6 +38,14 @@ func (r *repository) CreateBar(ctx context.Context, dto bar.CreateBarDTO) (uint3
 	row := r.client.QueryRow(ctx, q, dto.EventID, dto.Description, statusOpened)
 	err := row.Scan(&barID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return 0, newErr
+		}
+
 		return 0, err
 	}
 
@@ -57,6 +68,14 @@ func (r *repository) CloseBar(ctx context.Context, dto bar.CloseBarDTO) (string,
 
 	err := r.client.QueryRow(ctx, q, dto.ID, statusClosed).Scan(&status)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return "", newErr
+		}
+
 		return "", err
 	}
 
@@ -76,6 +95,14 @@ func (r *repository) GetOrders(ctx context.Context, dto bar.GetOrdersDTO) ([]str
 
 	rows, err := r.client.Query(ctx, q, dto.EventID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return nil, newErr
+		}
+
 		return nil, err
 	}
 
@@ -86,6 +113,14 @@ func (r *repository) GetOrders(ctx context.Context, dto bar.GetOrdersDTO) ([]str
 
 		err = rows.Scan(&ordrs)
 		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				pgErr = err.(*pgconn.PgError)
+				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+				r.logger.Error(newErr)
+				return nil, newErr
+			}
+
 			return nil, err
 		}
 
@@ -114,6 +149,14 @@ func (r *repository) GetBarOrders(ctx context.Context, dto bar.GetBarOrdersDTO) 
 
 	err := r.client.QueryRow(ctx, q, dto.ID, dto.EventID).Scan(&ordersID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return nil, newErr
+		}
+
 		return nil, err
 	}
 
@@ -135,6 +178,14 @@ func (r *repository) UpdateInfo(ctx context.Context, dto bar.UpdateBarDTO) (stri
 
 	err := r.client.QueryRow(ctx, q, dto.ID, dto.Description, dto.Orders).Scan(&updatedID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return "", newErr
+		}
+
 		return "", err
 	}
 
