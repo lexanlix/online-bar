@@ -31,13 +31,16 @@ import (
 func main() {
 	logging.Init()
 	logger := logging.GetLogger()
-	logger.Info("create router")
 
+	logger.Info("create router")
 	router := httprouter.New()
 
 	cfg := config.GetConfig()
 
 	hasher := hash.NewSHA1Hasher("passHasherSalt123")
+
+	// неправильно это, но пока для теста:
+	hub := bar_api.NewHub()
 
 	tokenManager, err := auth.NewManager(cfg.Tokens.SigningKey)
 	if err != nil {
@@ -78,7 +81,7 @@ func main() {
 	eventHandler := event_api.NewHandler(logger, eventService, userService, barService)
 
 	logger.Info("register bar handler")
-	barHandler := bar_api.NewHandler(logger, barService, userService)
+	barHandler := bar_api.NewHandler(logger, barService, userService, hub)
 
 	userHandler.Register(router)
 	eventHandler.Register(router)

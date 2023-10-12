@@ -24,19 +24,23 @@ const (
 	updateBarURL = "/api/bar/update"
 
 	getBarOrdersURL = "/api/bar/orders"
+
+	wsConnectionURL = "/api/bar/ws"
 )
 
 type handler struct {
 	userService user.Service
 	service     bar.Service
 	logger      *logging.Logger
+	hub         *Hub
 }
 
-func NewHandler(logger *logging.Logger, service bar.Service, userService user.Service) adapters.Handler {
+func NewHandler(logger *logging.Logger, service bar.Service, userService user.Service, hub *Hub) adapters.Handler {
 	return &handler{
 		service:     service,
 		userService: userService,
 		logger:      logger,
+		hub:         hub,
 	}
 }
 
@@ -45,6 +49,10 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodDelete, closeBarURL, apperror.Middleware(h.Verify(h.CloseBar)))
 	router.HandlerFunc(http.MethodGet, getBarOrdersURL, apperror.Middleware(h.Verify(h.GetBarOrders)))
 	router.HandlerFunc(http.MethodPost, updateBarURL, apperror.Middleware(h.Verify(h.UpdateBar)))
+	router.HandlerFunc(http.MethodGet, wsConnectionURL, func(w http.ResponseWriter, r *http.Request) {
+		go h.hub.Run()
+		serveWs(h.hub, w, r)
+	})
 }
 
 func (h *handler) CreateBar(w http.ResponseWriter, r *http.Request) error {
