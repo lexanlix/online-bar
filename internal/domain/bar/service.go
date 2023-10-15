@@ -2,18 +2,15 @@ package bar
 
 import (
 	"context"
-	"restapi/internal/domain/menu"
 	"restapi/pkg/logging"
 )
 
 type Service interface {
-	OpenBar(context.Context, CreateBarDTO) (uint32, menu.Menu, error)
+	OpenBar(context.Context, CreateBarDTO) (uint32, error)
 	CloseBar(context.Context, CloseBarDTO) error
 	UpdateInfo(context.Context, UpdateBarDTO) error
 	GetOrders(context.Context, GetOrdersDTO) ([]string, error)
 	GetBarOrders(context.Context, GetBarOrdersDTO) ([]string, error)
-	SetMenu(context.Context, menu.CreateMenuDTO) (menu.Menu, error)
-	UpdateMenu(context.Context) error
 }
 
 type service struct {
@@ -28,23 +25,18 @@ func NewService(repository Repository, logger *logging.Logger) Service {
 	}
 }
 
-func (s *service) OpenBar(ctx context.Context, dto CreateBarDTO) (uint32, menu.Menu, error) {
+func (s *service) OpenBar(ctx context.Context, dto CreateBarDTO) (uint32, error) {
 	s.logger.Infof("creating bar")
 
 	barID, err := s.repository.CreateBar(ctx, dto)
 
 	if err != nil {
-		return 0, menu.Menu{}, err
-	}
-
-	mn, err := s.SetMenu(ctx, dto.CreateMenuDTO)
-	if err != nil {
-		return 0, menu.Menu{}, err
+		return 0, err
 	}
 
 	s.logger.Infof("bar is created, bar_id: %d", barID)
 
-	return barID, mn, nil
+	return barID, nil
 }
 
 func (s *service) CloseBar(ctx context.Context, dto CloseBarDTO) error {
@@ -105,15 +97,4 @@ func (s *service) UpdateInfo(ctx context.Context, dto UpdateBarDTO) error {
 	s.logger.Infof("bar %s is updated", updatedID)
 
 	return nil
-}
-
-func (s *service) SetMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
-	newMenu := menu.NewMenu(dto.Drinks)
-	newMenu.UpdateTotalCost()
-
-	return newMenu, nil
-}
-
-func (s *service) UpdateMenu(context.Context) error {
-	panic("TODO this")
 }

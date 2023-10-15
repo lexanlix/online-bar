@@ -1,6 +1,7 @@
 package event
 
 import (
+	"restapi/internal/domain/menu"
 	"restapi/internal/domain/report"
 	"time"
 )
@@ -13,5 +14,6 @@ type Event struct {
 	ParticipantsNumber uint32        `json:"participants_number"`
 	DateTime           time.Time     `json:"date_time"`
 	Status             string        `json:"status"`
+	Menu               menu.Menu     `json:"menu"`
 	Report             report.Report `json:"report"`
 }

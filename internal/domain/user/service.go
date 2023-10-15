@@ -29,7 +29,7 @@ type Service interface {
 	UpdateSession(ctx context.Context, userID string) (Tokens, error)
 	CreateEvent(ctx context.Context, user User)
 	CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error)
-	AddDrink(ctx context.Context, dto menu.AddDrinkDTO) (menu.Menu, error)
+	AddDrink(ctx context.Context, dto menu.Drink) (menu.Menu, error)
 }
 
 type service struct {
@@ -244,7 +244,7 @@ func (s *service) CreateEvent(ctx context.Context, user User) {
 
 // Должно выполняться на клиенте пользователя
 func (s *service) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
-	newMenu := menu.NewMenu(dto.Drinks)
+	newMenu := menu.NewMenu(dto.ID, dto.Name, dto.Drinks)
 	newMenu.UpdateTotalCost()
 
 	return newMenu, nil
@@ -252,7 +252,7 @@ func (s *service) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.
 
 // Должно выполняться на клиенте пользователя
 // Добавляет напиток в меню (в указанную группу) и обновляет total_cost
-func (s *service) AddDrink(ctx context.Context, dto menu.AddDrinkDTO) (menu.Menu, error) {
+func (s *service) AddDrink(ctx context.Context, dto menu.Drink) (menu.Menu, error) {
 	drinks := make(map[string][]menu.Drink, 0)
 
 	emptyMeny := menu.Menu{

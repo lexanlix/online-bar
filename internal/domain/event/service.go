@@ -2,15 +2,21 @@ package event
 
 import (
 	"context"
+	"restapi/internal/domain/menu"
 	"restapi/pkg/logging"
+	"time"
 )
 
 type Service interface {
 	NewEvent(context.Context, CreateEventDTO) (string, error)
+	SetActive(timer *time.Timer, id string)
 	CompleteEvent(context.Context, CompleteEventDTO) error
 	FindAllUserEvents(context.Context, FindAllEventsDTO) ([]Event, error)
 	FindEvent(context.Context, FindEventDTO) (Event, error)
 	UpdateEvent(context.Context, UpdateEventDTO) error
+
+	SetMenu(context.Context, menu.CreateMenuDTO) (menu.Menu, error)
+	UpdateMenu(context.Context) error
 }
 
 type service struct {
@@ -28,15 +34,33 @@ func NewService(repository Repository, logger *logging.Logger) Service {
 func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (string, error) {
 	s.logger.Infof("creating event %s", dto.Name)
 
+	// Так как time.Now() дает время с часовым поясом, а в DateTime без, то вычитаем 3 часа
+	timeUntil := (time.Until(dto.DateTime) - (3 * time.Hour))
+	timer := time.NewTimer(timeUntil)
+
 	eventID, err := s.repository.CreateEvent(ctx, dto)
 
 	if err != nil {
 		return "", err
 	}
 
+	go s.SetActive(timer, eventID)
+
 	s.logger.Infof("event is created, event_id: %s", eventID)
 
 	return eventID, nil
+}
+
+// Мероприятие становится активным
+func (s *service) SetActive(timer *time.Timer, id string) {
+	<-timer.C
+
+	status, err := s.repository.SetActive(context.TODO(), id)
+	if err != nil {
+		panic(err)
+	}
+
+	s.logger.Infof("event %s now is %s", id, status)
 }
 
 func (s *service) CompleteEvent(ctx context.Context, dto CompleteEventDTO) error {
@@ -97,4 +121,17 @@ func (s *service) UpdateEvent(ctx context.Context, dto UpdateEventDTO) error {
 	s.logger.Infof("event %s is updated", updatedID)
 
 	return nil
+}
+
+// Перенести в ивент и править
+func (s *service) SetMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
+	newMenu := menu.NewMenu(dto.ID, dto.Name, dto.Drinks)
+	newMenu.UpdateTotalCost()
+
+	return newMenu, nil
+}
+
+// Перенести в ивент и править
+func (s *service) UpdateMenu(context.Context) error {
+	panic("TODO this")
 }

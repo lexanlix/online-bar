@@ -14,6 +14,7 @@ import (
 
 const (
 	statusCreated   = "Created"
+	statusActive    = "Active"
 	statusCompleted = "Completed"
 )
 
@@ -51,6 +52,35 @@ func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO) 
 	}
 
 	return eventID, nil
+}
+
+func (r *repository) SetActive(ctx context.Context, event_id string) (string, error) {
+	q := `
+	UPDATE events
+	SET 
+		status = $2
+	WHERE 
+		id = $1
+	RETURNING status
+	`
+	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
+
+	var status string
+
+	err := r.client.QueryRow(ctx, q, event_id, statusActive).Scan(&status)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return "", newErr
+		}
+
+		return "", err
+	}
+
+	return status, nil
 }
 
 // Не удаляет ивент из таблицы, а устанавливает статус "Completed"

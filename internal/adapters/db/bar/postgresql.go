@@ -25,9 +25,9 @@ type repository struct {
 func (r *repository) CreateBar(ctx context.Context, dto bar.CreateBarDTO) (uint32, error) {
 	q := `
 	INSERT INTO bars
-    	(event_id, description, status)
+    	(event_id, name, description, status)
 	VALUES
-    	($1, $2, $3)
+    	($1, $2, $3, $4)
 	RETURNING
     	id
 	`
@@ -35,7 +35,7 @@ func (r *repository) CreateBar(ctx context.Context, dto bar.CreateBarDTO) (uint3
 
 	var barID uint32
 
-	row := r.client.QueryRow(ctx, q, dto.EventID, dto.Description, statusOpened)
+	row := r.client.QueryRow(ctx, q, dto.EventID, dto.Name, dto.Description, statusOpened)
 	err := row.Scan(&barID)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -167,7 +167,7 @@ func (r *repository) UpdateInfo(ctx context.Context, dto bar.UpdateBarDTO) (stri
 	q := `
 	UPDATE bars
 	SET
-		description = $2, orders = $3
+		name = $2, description = $2, orders = $3, session_url = $4
 	WHERE
 		id = $1
 	RETURNING id
@@ -176,7 +176,7 @@ func (r *repository) UpdateInfo(ctx context.Context, dto bar.UpdateBarDTO) (stri
 
 	var updatedID string
 
-	err := r.client.QueryRow(ctx, q, dto.ID, dto.Description, dto.Orders).Scan(&updatedID)
+	err := r.client.QueryRow(ctx, q, dto.ID, dto.Name, dto.Description, dto.Orders, dto.SessionURL).Scan(&updatedID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {

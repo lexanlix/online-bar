@@ -1,16 +1,13 @@
 package bar
 
-import "restapi/internal/domain/menu"
-
 type CreateBarDTO struct {
-	EventID       string             `json:"event_id"`
-	Description   string             `json:"info"`
-	CreateMenuDTO menu.CreateMenuDTO `json:"menu"`
+	EventID     string `json:"event_id"`
+	Name        string `json:"name"`
+	Description string `json:"info"`
 }
 
 type RespCreateBar struct {
-	ID   uint32    `json:"id"`
-	Menu menu.Menu `json:"menu"`
+	ID uint32 `json:"id"`
 }
 
 type CloseBarDTO struct {
@@ -19,8 +16,10 @@ type CloseBarDTO struct {
 
 type UpdateBarDTO struct {
 	ID          uint32   `json:"id"`
+	Name        string   `json:"name"`
 	Description string   `json:"info"`
 	Orders      []string `json:"orders"`
+	SessionURL  string   `json:"session_url"`
 }
 
 type GetOrdersDTO struct {

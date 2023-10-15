@@ -300,7 +300,7 @@ func (h *handler) NewMenu(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) AddDrink(w http.ResponseWriter, r *http.Request) error {
-	var inp menu.AddDrinkDTO
+	var inp menu.Drink
 
 	err := json.NewDecoder(r.Body).Decode(&inp)
 	if err != nil {

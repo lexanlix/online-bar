@@ -63,14 +63,13 @@ func (h *handler) CreateBar(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	barID, menu, err2 := h.service.OpenBar(context.TODO(), dto)
+	barID, err2 := h.service.OpenBar(context.TODO(), dto)
 	if err2 != nil {
 		return err2
 	}
 
 	resp := bar.RespCreateBar{
-		ID:   barID,
-		Menu: menu,
+		ID: barID,
 	}
 
 	respBytes, err := json.Marshal(resp)
