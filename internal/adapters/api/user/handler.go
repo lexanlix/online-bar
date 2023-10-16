@@ -31,10 +31,11 @@ const (
 	deleteUserURL  = "/api/user/delete"
 
 	createMenuURL = "/api/user/menu/new"
-	addDrinkURL   = "/api/user/menu/add"
+	//addDrinkURL   = "/api/user/menu/add"
 )
 
 type handler struct {
+	menuService  menu.Service
 	eventService event.Service
 	barService   bar.Service
 	service      user.Service
@@ -42,12 +43,13 @@ type handler struct {
 }
 
 func NewHandler(logger *logging.Logger, service user.Service, eventService event.Service,
-	barService bar.Service) adapters.Handler {
+	barService bar.Service, menuService menu.Service) adapters.Handler {
 	return &handler{
 		service:      service,
 		logger:       logger,
 		eventService: eventService,
 		barService:   barService,
+		menuService:  menuService,
 	}
 }
 
@@ -59,7 +61,7 @@ func (h *handler) Register(router *httprouter.Router) {
 
 	// for testing menu functions
 	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.NewMenu))
-	router.HandlerFunc(http.MethodPost, addDrinkURL, apperror.Middleware(h.AddDrink))
+	//router.HandlerFunc(http.MethodPost, addDrinkURL, apperror.Middleware(h.AddDrink))
 
 	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
 	router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.Verify(h.PartiallyUpdateUser)))
@@ -283,7 +285,7 @@ func (h *handler) NewMenu(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	menu, err := h.service.CreateMenu(context.TODO(), inp)
+	menu, err := h.menuService.NewMenu(context.TODO(), inp)
 	if err != nil {
 		return err
 	}
@@ -299,26 +301,26 @@ func (h *handler) NewMenu(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *handler) AddDrink(w http.ResponseWriter, r *http.Request) error {
-	var inp menu.Drink
+// func (h *handler) AddDrink(w http.ResponseWriter, r *http.Request) error {
+// 	var inp menu.Drink
 
-	err := json.NewDecoder(r.Body).Decode(&inp)
-	if err != nil {
-		return err
-	}
+// 	err := json.NewDecoder(r.Body).Decode(&inp)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	menu, err := h.service.AddDrink(context.TODO(), inp)
-	if err != nil {
-		return err
-	}
+// 	menu, err := h.service.AddDrink(context.TODO(), inp)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	menuBytes, err := json.Marshal(menu)
-	if err != nil {
-		return err
-	}
+// 	menuBytes, err := json.Marshal(menu)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(menuBytes)
+// 	w.WriteHeader(http.StatusOK)
+// 	w.Write(menuBytes)
 
-	return nil
-}
+// 	return nil
+// }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"restapi/internal/domain/menu"
 	"restapi/internal/domain/session"
 	"restapi/pkg/auth"
 	"restapi/pkg/hash"
@@ -28,8 +27,9 @@ type Service interface {
 	CreateSession(ctx context.Context, userID string) (Tokens, error)
 	UpdateSession(ctx context.Context, userID string) (Tokens, error)
 	CreateEvent(ctx context.Context, user User)
-	CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error)
-	AddDrink(ctx context.Context, dto menu.Drink) (menu.Menu, error)
+
+	//CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error)
+	//AddDrink(ctx context.Context, dto menu.Drink) (menu.Menu, error)
 }
 
 type service struct {
@@ -242,27 +242,27 @@ func (s *service) CreateEvent(ctx context.Context, user User) {
 
 }
 
-// Должно выполняться на клиенте пользователя
-func (s *service) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
-	newMenu := menu.NewMenu(dto.ID, dto.Name, dto.Drinks)
-	newMenu.UpdateTotalCost()
+// // Должно выполняться на клиенте пользователя
+// func (s *service) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
+// 	newMenu := menu.NewMenu(dto.ID, dto.Name, dto.Drinks)
+// 	newMenu.UpdateTotalCost()
 
-	return newMenu, nil
-}
+// 	return newMenu, nil
+// }
 
-// Должно выполняться на клиенте пользователя
-// Добавляет напиток в меню (в указанную группу) и обновляет total_cost
-func (s *service) AddDrink(ctx context.Context, dto menu.Drink) (menu.Menu, error) {
-	drinks := make(map[string][]menu.Drink, 0)
+// // Должно выполняться на клиенте пользователя
+// // Добавляет напиток в меню (в указанную группу) и обновляет total_cost
+// func (s *service) AddDrink(ctx context.Context, dto menu.Drink) (menu.Menu, error) {
+// 	drinks := make(map[string][]menu.Drink, 0)
 
-	emptyMeny := menu.Menu{
-		Drinks: drinks,
-	}
+// 	emptyMeny := menu.Menu{
+// 		Drinks: drinks,
+// 	}
 
-	err := emptyMeny.AddDrink(dto)
-	if err != nil {
-		return menu.Menu{}, err
-	}
+// 	err := emptyMeny.AddDrink(dto)
+// 	if err != nil {
+// 		return menu.Menu{}, err
+// 	}
 
-	return emptyMeny, nil
-}
+// 	return emptyMeny, nil
+// }

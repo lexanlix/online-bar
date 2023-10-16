@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"restapi/internal/domain/menu"
 	"restapi/pkg/logging"
 	"time"
 )
@@ -15,8 +14,8 @@ type Service interface {
 	FindEvent(context.Context, FindEventDTO) (Event, error)
 	UpdateEvent(context.Context, UpdateEventDTO) error
 
-	SetMenu(context.Context, menu.CreateMenuDTO) (menu.Menu, error)
-	UpdateMenu(context.Context) error
+	//SetMenu(context.Context, menu.CreateMenuDTO) (menu.Menu, error)
+	//UpdateMenu(context.Context) error
 }
 
 type service struct {
@@ -123,15 +122,15 @@ func (s *service) UpdateEvent(ctx context.Context, dto UpdateEventDTO) error {
 	return nil
 }
 
-// Перенести в ивент и править
-func (s *service) SetMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
-	newMenu := menu.NewMenu(dto.ID, dto.Name, dto.Drinks)
-	newMenu.UpdateTotalCost()
+// // Править
+// func (s *service) SetMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
+// 	newMenu := menu.NewMenu(dto.ID, dto.Name, dto.Drinks)
+// 	newMenu.UpdateTotalCost()
 
-	return newMenu, nil
-}
+// 	return newMenu, nil
+// }
 
-// Перенести в ивент и править
-func (s *service) UpdateMenu(context.Context) error {
-	panic("TODO this")
-}
+// // Править
+// func (s *service) UpdateMenu(context.Context) error {
+// 	panic("TODO this")
+// }
