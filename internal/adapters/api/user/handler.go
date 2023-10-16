@@ -31,6 +31,7 @@ const (
 	deleteUserURL  = "/api/user/delete"
 
 	createMenuURL = "/api/user/menu/new"
+	menuURL       = "/api/user/menu"
 	//addDrinkURL   = "/api/user/menu/add"
 )
 
@@ -59,8 +60,6 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPost, signInURL, apperror.Middleware(h.SignIn))
 	router.HandlerFunc(http.MethodGet, refreshURL, apperror.Middleware(h.UserRefresh))
 
-	// for testing menu functions
-	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.NewMenu))
 	//router.HandlerFunc(http.MethodPost, addDrinkURL, apperror.Middleware(h.AddDrink))
 
 	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
@@ -68,6 +67,9 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodGet, getUserURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
 	router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
 	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
+
+	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.Verify(h.NewMenu)))
+	router.HandlerFunc(http.MethodGet, menuURL, apperror.Middleware(h.Verify(h.GetMenu)))
 }
 
 func (h *handler) SignUp(w http.ResponseWriter, r *http.Request) error {
@@ -296,6 +298,30 @@ func (h *handler) NewMenu(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.WriteHeader(http.StatusOK)
+	w.Write(menuBytes)
+
+	return nil
+}
+
+func (h *handler) GetMenu(w http.ResponseWriter, r *http.Request) error {
+	var dto menu.FindMenuDTO
+	dto.ID = r.URL.Query().Get("id")
+
+	if dto.ID == "" {
+		return apperror.NewAppError(nil, "query param is empty", "param id is empty", "US-000015")
+	}
+
+	menu, err := h.menuService.FindMenu(context.TODO(), dto)
+	if err != nil {
+		return err
+	}
+
+	menuBytes, err := json.Marshal(menu)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(200)
 	w.Write(menuBytes)
 
 	return nil

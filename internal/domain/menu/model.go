@@ -28,7 +28,7 @@ const (
 // }
 
 type Menu struct {
-	ID        uint32             `json:"id"`
+	ID        string             `json:"id"`
 	UserID    string             `json:"user_id"`
 	Name      string             `json:"name"`
 	Drinks    map[string][]Drink `json:"drinks"`
@@ -75,7 +75,7 @@ type SolidUnit struct {
 	Amount uint32 `json:"amount"`
 }
 
-func NewMenu(id uint32, name string, drinks map[string][]Drink) Menu {
+func NewMenu(id string, name string, drinks map[string][]Drink) Menu {
 	return Menu{
 		ID:     id,
 		Name:   name,

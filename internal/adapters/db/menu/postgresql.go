@@ -1,6 +1,7 @@
 package menu_db
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -18,21 +19,21 @@ type repository struct {
 }
 
 func (r *repository) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (string, error) {
-	q := `
+	drinksString := GetInsertValue(&dto.Drinks)
+
+	q := fmt.Sprintf(`
 	INSERT INTO menu
 		(user_id, name, drinks, total_cost)
 	VALUES
-    	($1, $2, $3, $4)
+    	($1, $2, %s, $3)
 	RETURNING
     	id
-	`
+	`, drinksString)
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
 	var menuID string
 
-	drinksString := GetInsertValue(dto.Drinks)
-
-	row := r.client.QueryRow(ctx, q, dto.UserID, dto.Name, drinksString, 600)
+	row := r.client.QueryRow(ctx, q, dto.UserID, dto.Name, 600)
 	err := row.Scan(&menuID)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -83,29 +84,33 @@ func (r *repository) DeleteMenu(ctx context.Context, dto menu.DeleteMenuDTO) (st
 func (r *repository) FindMenu(ctx context.Context, dto menu.FindMenuDTO) (menu.Menu, error) {
 	q := `
 	SELECT
-    	orders
+		id, user_id, name, drinks, total_cost
 	FROM 
-    	bars
+    	menu
 	WHERE 
-    	id = $1 AND event_id = $2
+    	id = $1
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
 	var mn menu.Menu
-	/*
-		err := r.client.QueryRow(ctx, q, dto.ID, dto.EventID).Scan(&ordersID)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) {
-				pgErr = err.(*pgconn.PgError)
-				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
-				r.logger.Error(newErr)
-				return nil, newErr
-			}
+	var drinks string
 
-			return nil, err
+	err := r.client.QueryRow(ctx, q, dto.ID).Scan(&mn.ID, &mn.UserID, &mn.Name, &drinks, &mn.TotalCost)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return menu.Menu{}, newErr
 		}
-	*/
+		return menu.Menu{}, err
+	}
+
+	drinksMap := ParseMenuRequest(drinks)
+
+	mn.Drinks = drinksMap
+
 	return mn, nil
 }
 
@@ -146,8 +151,101 @@ func NewRepository(client postgresql.Client, logger *logging.Logger) menu.Reposi
 	}
 }
 
-func GetInsertValue(drinks map[string][]menu.Drink) string {
-	var insertString string
+func GetInsertValue(drinkGroups *map[string][]menu.Drink) string {
+	var buffer bytes.Buffer
+	var categories []string
 
-	return insertString
+	for category := range *drinkGroups {
+		categories = append(categories, category)
+	}
+
+	buffer.WriteString("CAST(ARRAY[")
+
+	for category, drinks := range *drinkGroups {
+		buffer.WriteString(fmt.Sprintf("('%s', CAST(ARRAY[", category))
+
+		for _, drink := range drinks {
+			buffer.WriteString(fmt.Sprintf("(%d, '%s', '%s', '%s', CAST(", drink.ID, drink.Name, drink.Category,
+				drink.Cooking_method))
+
+			buffer.WriteString(fmt.Sprintf("(%d, CAST(ARRAY[", drink.Composition.IceBulk))
+
+			for _, liquid := range drink.Composition.Liquids {
+				buffer.WriteString(fmt.Sprintf("('%s', '%s', %d)", liquid.Name, liquid.Unit, liquid.Volume))
+
+				// Если это последний элемент массива, то "," в конце не ставим
+				if liquid == drink.Composition.Liquids[len(drink.Composition.Liquids)-1] {
+					break
+				}
+
+				buffer.WriteString(",")
+			}
+			buffer.WriteString("] AS Liquid []), CAST(ARRAY[")
+
+			for _, solidBulk := range drink.Composition.SolidsBulk {
+				buffer.WriteString(fmt.Sprintf("('%s', '%s', %d)", solidBulk.Name, solidBulk.Unit, solidBulk.Volume))
+
+				// Если это последний элемент массива, то "," в конце не ставим
+				if solidBulk == drink.Composition.SolidsBulk[len(drink.Composition.SolidsBulk)-1] {
+					break
+				}
+
+				buffer.WriteString(",")
+			}
+			buffer.WriteString("] AS Solid_bulk []), CAST(ARRAY[")
+
+			for _, solidUnit := range drink.Composition.SolidsUnit {
+				buffer.WriteString(fmt.Sprintf("('%s', %d)", solidUnit.Name, solidUnit.Amount))
+
+				// Если это последний элемент массива, то "," в конце не ставим
+				if solidUnit == drink.Composition.SolidsUnit[len(drink.Composition.SolidsUnit)-1] {
+					break
+				}
+
+				buffer.WriteString(",")
+			}
+
+			buffer.WriteString(fmt.Sprintf("] AS Solid_unit [])) AS Composition), '%s', %d, ARRAY[",
+				drink.OrderIceType, drink.Price))
+
+			for _, barId := range drink.BarsID {
+				buffer.WriteString(fmt.Sprintf("%d", barId))
+
+				// Если это последний элемент массива, то "," в конце не ставим
+				if barId == drink.BarsID[len(drink.BarsID)-1] {
+					break
+				}
+
+				buffer.WriteString(",")
+			}
+
+			buffer.WriteString("])")
+
+			// Если это последний элемент массива, то "," в конце не ставим
+			if drink.ID == drinks[len(drinks)-1].ID {
+				break
+			}
+
+			buffer.WriteString(",")
+		}
+
+		buffer.WriteString("] AS Drink []))")
+
+		// Если это последний элемент map'a, то "," в конце не ставим
+		if category == categories[len(categories)-1] {
+			break
+		}
+
+		buffer.WriteString(",")
+	}
+
+	buffer.WriteString("] AS DrinksGroup [])")
+	return buffer.String()
+}
+
+// TODO
+func ParseMenuRequest(dr string) map[string][]menu.Drink {
+	var drinks map[string][]menu.Drink
+
+	return drinks
 }
