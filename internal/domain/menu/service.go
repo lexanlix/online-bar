@@ -41,13 +41,13 @@ func (s *service) NewMenu(ctx context.Context, dto CreateMenuDTO) (string, error
 func (s *service) DeleteMenu(ctx context.Context, dto DeleteMenuDTO) error {
 	s.logger.Infof("deleting menu %s", dto.ID)
 
-	status, err := s.repository.DeleteMenu(ctx, dto)
+	err := s.repository.DeleteMenu(ctx, dto)
 
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("menu is %s, menu_id: %s", status, dto.ID)
+	s.logger.Infof("menu is deleted, menu_id: %s", dto.ID)
 
 	return nil
 }
@@ -69,6 +69,8 @@ func (s *service) FindMenu(ctx context.Context, dto FindMenuDTO) (Menu, error) {
 
 func (s *service) UpdateMenu(ctx context.Context, dto UpdateMenuDTO) error {
 	s.logger.Infof("update menu")
+
+	// TODO пересчет total_cost
 
 	updatedID, err := s.repository.UpdateMenu(ctx, dto)
 

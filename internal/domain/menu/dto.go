@@ -6,6 +6,10 @@ type CreateMenuDTO struct {
 	Drinks map[string][]Drink `json:"drinks"`
 }
 
+type RespCreateMenuDTO struct {
+	ID string `json:"id"`
+}
+
 type DeleteMenuDTO struct {
 	ID string `json:"id"`
 }
@@ -16,7 +20,6 @@ type FindMenuDTO struct {
 
 type UpdateMenuDTO struct {
 	ID        string             `json:"id"`
-	UserID    string             `json:"user_id"`
 	Name      string             `json:"name"`
 	Drinks    map[string][]Drink `json:"drinks"`
 	TotalCost uint32             `json:"total_cost"`

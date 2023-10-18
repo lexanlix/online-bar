@@ -31,6 +31,8 @@ const (
 	deleteUserURL  = "/api/user/delete"
 
 	createMenuURL = "/api/user/menu/new"
+	deleteMenuURL = "/api/user/menu/delete"
+	updateMenuURL = "/api/user/menu/update"
 	menuURL       = "/api/user/menu"
 	//addDrinkURL   = "/api/user/menu/add"
 )
@@ -68,8 +70,10 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPut, updateUserURL, apperror.Middleware(h.Verify(h.UpdateUser)))
 	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
 
-	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.Verify(h.NewMenu)))
-	router.HandlerFunc(http.MethodGet, menuURL, apperror.Middleware(h.Verify(h.GetMenu)))
+	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.NewMenu))
+	router.HandlerFunc(http.MethodDelete, deleteMenuURL, apperror.Middleware(h.DeleteMenu))
+	router.HandlerFunc(http.MethodPut, updateMenuURL, apperror.Middleware(h.UpdateMenu))
+	router.HandlerFunc(http.MethodGet, menuURL, apperror.Middleware(h.GetMenu))
 }
 
 func (h *handler) SignUp(w http.ResponseWriter, r *http.Request) error {
@@ -280,25 +284,47 @@ func (h *handler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *handler) NewMenu(w http.ResponseWriter, r *http.Request) error {
-	var inp menu.CreateMenuDTO
+	var dto menu.CreateMenuDTO
 
-	err := json.NewDecoder(r.Body).Decode(&inp)
+	err := json.NewDecoder(r.Body).Decode(&dto)
 	if err != nil {
 		return err
 	}
 
-	menu, err := h.menuService.NewMenu(context.TODO(), inp)
+	var resp menu.RespCreateMenuDTO
+	menuID, err := h.menuService.NewMenu(context.TODO(), dto)
 	if err != nil {
 		return err
 	}
 
-	menuBytes, err := json.Marshal(menu)
+	resp.ID = menuID
+
+	respBytes, err := json.Marshal(resp)
 	if err != nil {
 		return err
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(menuBytes)
+	w.Write(respBytes)
+
+	return nil
+}
+
+func (h *handler) DeleteMenu(w http.ResponseWriter, r *http.Request) error {
+	var dto menu.DeleteMenuDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	err = h.menuService.DeleteMenu(context.TODO(), dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong id", err.Error(), "US-000009")
+	}
+
+	w.WriteHeader(200)
+	w.Write([]byte("menu is deleted"))
 
 	return nil
 }
@@ -323,6 +349,25 @@ func (h *handler) GetMenu(w http.ResponseWriter, r *http.Request) error {
 
 	w.WriteHeader(200)
 	w.Write(menuBytes)
+
+	return nil
+}
+
+func (h *handler) UpdateMenu(w http.ResponseWriter, r *http.Request) error {
+	var dto menu.UpdateMenuDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	err = h.menuService.UpdateMenu(context.TODO(), dto)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(204)
+	w.Write([]byte("menu is updated"))
 
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"restapi/pkg/client/postgresql"
 	"restapi/pkg/logging"
 	repeatable "restapi/pkg/utils"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -19,7 +20,7 @@ type repository struct {
 }
 
 func (r *repository) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (string, error) {
-	drinksString := GetInsertValue(&dto.Drinks)
+	drinksString := EncodeInsertValue(&dto.Drinks)
 
 	q := fmt.Sprintf(`
 	INSERT INTO menu
@@ -50,37 +51,37 @@ func (r *repository) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO) (st
 	return menuID, nil
 }
 
-// TODO
-func (r *repository) DeleteMenu(ctx context.Context, dto menu.DeleteMenuDTO) (string, error) {
+func (r *repository) DeleteMenu(ctx context.Context, dto menu.DeleteMenuDTO) error {
 	q := `
-	UPDATE bars
-	SET
-    	status = $2
+	DELETE FROM 
+		menu
 	WHERE
     	id = $1
-	RETURNING status
+	RETURNING true AS is_deleted
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	var status string
-	/*
-		err := r.client.QueryRow(ctx, q, dto.ID, statusClosed).Scan(&status)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) {
-				pgErr = err.(*pgconn.PgError)
-				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
-				r.logger.Error(newErr)
-				return "", newErr
-			}
+	var isDeleted bool
 
-			return "", err
+	err := r.client.QueryRow(ctx, q, dto.ID).Scan(&isDeleted)
+	if err != nil {
+		if strings.Contains(err.Error(), "SQLSTATE 22P02") {
+			err := fmt.Errorf("database error: %v", err)
+			return err
 		}
-	*/
-	return status, nil
+
+		err := fmt.Errorf("database error: rows not found")
+		return err
+	}
+
+	if !isDeleted {
+		err := fmt.Errorf("database deleting error: %v", err)
+		return err
+	}
+
+	return nil
 }
 
-// TODO
 func (r *repository) FindMenu(ctx context.Context, dto menu.FindMenuDTO) (menu.Menu, error) {
 	q := `
 	SELECT
@@ -107,40 +108,43 @@ func (r *repository) FindMenu(ctx context.Context, dto menu.FindMenuDTO) (menu.M
 		return menu.Menu{}, err
 	}
 
-	drinksMap := ParseMenuRequest(drinks)
+	drinksMap, err := DecodeMenuRequest(drinks)
+	if err != nil {
+		return menu.Menu{}, err
+	}
 
 	mn.Drinks = drinksMap
 
 	return mn, nil
 }
 
-// TODO
 func (r *repository) UpdateMenu(ctx context.Context, dto menu.UpdateMenuDTO) (string, error) {
-	q := `
-	UPDATE bars
+	drinksString := EncodeInsertValue(&dto.Drinks)
+
+	q := fmt.Sprintf(`
+	UPDATE menu
 	SET
-		name = $2, description = $2, orders = $3, session_url = $4
+		name = $2, drinks = %s, total_cost = $3
 	WHERE
 		id = $1
 	RETURNING id
-	`
+	`, drinksString)
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
 	var updatedID string
-	/*
-		err := r.client.QueryRow(ctx, q, dto.ID, dto.Name, dto.Description, dto.Orders, dto.SessionURL).Scan(&updatedID)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) {
-				pgErr = err.(*pgconn.PgError)
-				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
-				r.logger.Error(newErr)
-				return "", newErr
-			}
-
-			return "", err
+	err := r.client.QueryRow(ctx, q, dto.ID, dto.Name, dto.TotalCost).Scan(&updatedID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return "", newErr
 		}
-	*/
+
+		return "", err
+	}
+
 	return updatedID, nil
 }
 
@@ -151,7 +155,7 @@ func NewRepository(client postgresql.Client, logger *logging.Logger) menu.Reposi
 	}
 }
 
-func GetInsertValue(drinkGroups *map[string][]menu.Drink) string {
+func EncodeInsertValue(drinkGroups *map[string][]menu.Drink) string {
 	var buffer bytes.Buffer
 	var categories []string
 
@@ -243,9 +247,16 @@ func GetInsertValue(drinkGroups *map[string][]menu.Drink) string {
 	return buffer.String()
 }
 
-// TODO
-func ParseMenuRequest(dr string) map[string][]menu.Drink {
-	var drinks map[string][]menu.Drink
+func DecodeMenuRequest(dr string) (map[string][]menu.Drink, error) {
+	drinks := make(map[string][]menu.Drink, 0)
 
-	return drinks
+	dr = strings.ReplaceAll(dr, "\"", "")
+	dr = strings.ReplaceAll(dr, "\\", "")
+
+	err := UnmarshalQueryRow(dr, drinks)
+	if err != nil {
+		return drinks, err
+	}
+
+	return drinks, nil
 }
