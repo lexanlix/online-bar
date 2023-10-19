@@ -19,24 +19,19 @@ type FindMenuDTO struct {
 }
 
 type UpdateMenuDTO struct {
-	ID        string             `json:"id"`
-	Name      string             `json:"name"`
-	Drinks    map[string][]Drink `json:"drinks"`
-	TotalCost uint32             `json:"total_cost"`
+	ID     string             `json:"id"`
+	Name   string             `json:"name"`
+	Drinks map[string][]Drink `json:"drinks"`
 }
 
-type GetMapDTO struct {
-	Category string  `json:"category"`
-	Drinks   []Drink `json:"drinks"`
+type UpdateMenuNameDTO struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type AddDrinkDTO struct {
-	ID             uint32      `json:"id"`
-	Name           string      `json:"name"`
-	Category       string      `json:"category"`
-	Cooking_method string      `json:"cooking_method"`
-	Composition    Composition `json:"composition"`
-	IceType        string      `json:"ice_type"`
-	Price          uint32      `json:"price"`
-	BarsID         []uint32    `json:"bars_id"`
+	MenuID     string `json:"menu_id"`
+	CategID    uint32 `json:"category_id"`
+	IsNewCateg bool   `json:"is_new_category"`
+	Drink      Drink  `json:"drink"`
 }

@@ -34,8 +34,17 @@ func read(lex *lexer, v reflect.Value) {
 			lex.next()
 			return
 		}
+
 		var str string
+
 		for i := 0; !endString(lex); i++ {
+			if lex.token == token.SUB {
+				lex.next()
+				str += fmt.Sprintf("-%s", lex.lit)
+				lex.next()
+				continue
+			}
+
 			if i > 0 {
 				str += fmt.Sprintf(" %s", lex.lit)
 			} else {
@@ -43,7 +52,9 @@ func read(lex *lexer, v reflect.Value) {
 			}
 			lex.next()
 		}
+
 		v.SetString(str)
+
 		if lex.token == token.COMMA {
 			lex.consume(token.COMMA)
 		}

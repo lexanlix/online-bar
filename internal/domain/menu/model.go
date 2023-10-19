@@ -2,12 +2,12 @@ package menu
 
 const (
 	// Drinks.Category constants
-	ShotDrink  = "shot_drinks"
-	ShortDrink = "short_drinks"
-	LongDrink  = "long_drinks"
-	NonAlco    = "non_alcos"
 	Beer       = "beers"
 	Cider      = "ciders"
+	LongDrink  = "long_drinks"
+	NonAlco    = "non_alcos"
+	ShortDrink = "short_drinks"
+	ShotDrink  = "shot_drinks"
 	StrongAlco = "strong_alcos"
 
 	// ice_types
@@ -21,11 +21,6 @@ const (
 	Build = "build"
 	Blend = "blend"
 )
-
-// type Menu interface {
-// 	AddDrink(dto AddDrinkDTO) error
-// 	UpdateTotalCost()
-// }
 
 type Menu struct {
 	ID        string             `json:"id"`
@@ -43,16 +38,16 @@ type Drink struct {
 	Composition    Composition `json:"composition"`
 	OrderIceType   string      `json:"order_ice_type"`
 	Price          uint32      `json:"price"`
-	BarsID         []uint32    `json:"bars_id"`
+	BarsID         []uint32    `json:"bars_id,omitempty"`
 }
 
 // Состав напитка:
 // общее количества затраченного льда, ингридиенты разных типов с количеством и размерностью
 type Composition struct {
 	IceBulk    uint32      `json:"ice_bulk"`
-	Liquids    []Liquid    `json:"liquids"`
-	SolidsBulk []SolidBulk `json:"solids_bulk"`
-	SolidsUnit []SolidUnit `json:"solids_unit"`
+	Liquids    []Liquid    `json:"liquids,omitempty"`
+	SolidsBulk []SolidBulk `json:"solids_bulk,omitempty"`
+	SolidsUnit []SolidUnit `json:"solids_unit,omitempty"`
 }
 
 // Жидкие ингридиенты, имеющие объем и его ед. изм.
@@ -73,39 +68,4 @@ type SolidBulk struct {
 type SolidUnit struct {
 	Name   string `json:"name"`
 	Amount uint32 `json:"amount"`
-}
-
-func NewMenu(id string, name string, drinks map[string][]Drink) Menu {
-	return Menu{
-		ID:     id,
-		Name:   name,
-		Drinks: drinks,
-	}
-}
-
-// func (m *Menu) AddDrink(dto Drink) error {
-// 	newDrink := Drink(dto)
-
-// 	m.Drinks[dto.Category] = append(m.Drinks[dto.Category], newDrink)
-// 	m.UpdateTotalCost()
-
-// 	return nil
-// }
-
-func UpdateTotalCost(m *Menu) {
-	for category := range m.Drinks {
-		for _, drink := range m.Drinks[category] {
-			m.TotalCost += drink.Price
-		}
-	}
-}
-
-// TODO
-func GetTotalCost(m *UpdateMenuDTO) uint32 {
-	for category := range m.Drinks {
-		for _, drink := range m.Drinks[category] {
-			m.TotalCost += drink.Price
-		}
-	}
-	return 0
 }
