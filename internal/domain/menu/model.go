@@ -31,7 +31,7 @@ type Menu struct {
 }
 
 type Drink struct {
-	ID             uint32      `json:"id"`
+	ID             string      `json:"id"`
 	Name           string      `json:"name"`
 	Category       string      `json:"category"`
 	Cooking_method string      `json:"cooking_method"`

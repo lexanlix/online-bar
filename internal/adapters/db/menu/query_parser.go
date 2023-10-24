@@ -87,22 +87,6 @@ func read(lex *lexer, v reflect.Value) {
 	panic(fmt.Sprintf("unexpected lex: %q", lex.lit))
 }
 
-func readMap(lex *lexer, v reflect.Value) {
-	lex.next()
-	for !endList(lex) {
-		lex.consume(token.LPAREN)
-		key := reflect.New(v.Type().Key()).Elem()
-		read(lex, key)
-		value := reflect.New(v.Type().Elem()).Elem()
-		read(lex, value)
-		v.SetMapIndex(key, value)
-		lex.consume(token.RPAREN)
-		if lex.token == token.COMMA {
-			lex.consume(token.COMMA)
-		}
-	}
-}
-
 func readList(lex *lexer, v reflect.Value) {
 	switch v.Kind() {
 	case reflect.Slice:
@@ -121,6 +105,13 @@ func readList(lex *lexer, v reflect.Value) {
 		}
 	default:
 		panic(fmt.Sprintf("cannot decode list to %v", v.Type()))
+	}
+}
+
+func readStruct(lex *lexer, v reflect.Value) {
+	lex.next()
+	for i := 0; !endStruct(lex); i++ {
+		read(lex, v.Field(i))
 	}
 }
 
@@ -169,7 +160,7 @@ func UnmarshalQueryRow(data string, out interface{}) (err error) {
 	}()
 
 	lex.next()
-	readMap(lex, reflect.ValueOf(out))
+	readStruct(lex, reflect.ValueOf(out).Elem())
 	lex.next()
 
 	return nil

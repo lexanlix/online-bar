@@ -5,10 +5,12 @@ import (
 	"testing"
 )
 
+// REFRESH THIS
 func Test_EncodeInsertValue(t *testing.T) {
-	dr := map[string][]menu.Drink{}
+	dr := map[string][]menu.NewDrinkDTO{}
+	menu_id := ""
 
-	s := EncodeInsertValue(&dr)
+	s := EncodeInsertValue(&dr, menu_id)
 
 	if s != "CAST(ARRAY[] AS DrinksGroup [])" {
 		t.Fatalf("empty drink array get incorrect string: %s", s)

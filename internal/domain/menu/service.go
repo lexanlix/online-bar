@@ -9,9 +9,11 @@ type Service interface {
 	NewMenu(context.Context, CreateMenuDTO) (string, error)
 	DeleteMenu(context.Context, DeleteMenuDTO) error
 	FindMenu(context.Context, FindMenuDTO) (Menu, error)
+	FindUserMenus(context.Context, UserMenusDTO) (RespUserMenus, error)
 	UpdateMenu(context.Context, UpdateMenuDTO) error
 	UpdateMenuName(context.Context, UpdateMenuNameDTO) error
-	AddDrink(context.Context, AddDrinkDTO) error
+	AddDrink(context.Context, AddDrinkDTO) (string, error)
+	DeleteDrink(context.Context, DeleteDrinkDTO) error
 }
 
 type service struct {
@@ -71,10 +73,24 @@ func (s *service) FindMenu(ctx context.Context, dto FindMenuDTO) (Menu, error) {
 	return mn, nil
 }
 
+func (s *service) FindUserMenus(ctx context.Context, dto UserMenusDTO) (RespUserMenus, error) {
+	s.logger.Infof("find user menus, user_id: %s", dto.UserID)
+
+	menus, err := s.repository.FindUserMenus(ctx, dto)
+
+	if err != nil {
+		return RespUserMenus{}, err
+	}
+
+	s.logger.Infof("user menus are found")
+
+	return menus, nil
+}
+
 func (s *service) UpdateMenu(ctx context.Context, dto UpdateMenuDTO) error {
 	s.logger.Infof("update menu")
 
-	totalCost := s.GetTotalCost(dto.Drinks)
+	totalCost := s.UpdateTotalCost(dto.Drinks)
 
 	updatedID, err := s.repository.UpdateMenu(ctx, dto, totalCost)
 
@@ -101,30 +117,44 @@ func (s *service) UpdateMenuName(ctx context.Context, dto UpdateMenuNameDTO) err
 	return nil
 }
 
-func (s *service) AddDrink(ctx context.Context, dto AddDrinkDTO) error {
+func (s *service) AddDrink(ctx context.Context, dto AddDrinkDTO) (string, error) {
 	s.logger.Infof("adding drink to menu %s", dto.MenuID)
 
-	err := s.repository.AddDrink(ctx, dto)
+	drinkID, err := s.repository.AddDrink(ctx, dto)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	s.logger.Infof("drink added to menu")
 
+	return drinkID, nil
+}
+
+func (s *service) DeleteDrink(ctx context.Context, dto DeleteDrinkDTO) error {
+	s.logger.Infof("deleting drink from menu")
+
+	err := s.repository.DeleteDrink(ctx, dto)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Infof("drink deleted from menu")
+
 	return nil
 }
 
-func (s *service) UpdateTotalCost(menu *Menu) {
-	menu.TotalCost = 0
-	for _, drinks := range menu.Drinks {
+func (s *service) UpdateTotalCost(drinkGroups map[string][]Drink) uint32 {
+	var totalCost uint32
+	for _, drinks := range drinkGroups {
 		for _, drink := range drinks {
-			menu.TotalCost += drink.Price
+			totalCost += drink.Price
 		}
 	}
+	return totalCost
 }
 
-func (s *service) GetTotalCost(drinkGroups map[string][]Drink) uint32 {
+func (s *service) GetTotalCost(drinkGroups map[string][]NewDrinkDTO) uint32 {
 	var totalCost uint32
 	for _, drinks := range drinkGroups {
 		for _, drink := range drinks {

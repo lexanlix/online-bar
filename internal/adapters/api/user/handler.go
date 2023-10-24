@@ -30,12 +30,14 @@ const (
 	pUpdateUserURL = "/api/user/update/part"
 	deleteUserURL  = "/api/user/delete"
 
-	createMenuURL     = "/api/user/menu/new"
-	deleteMenuURL     = "/api/user/menu/delete"
-	updateMenuURL     = "/api/user/menu/update"
-	updateMenuNameURL = "/api/user/menu/update/name"
-	menuAddDrinkURL   = "/api/user/menu/add_drink"
-	getMenuURL        = "/api/user/menu"
+	createMenuURL      = "/api/user/menu/new"
+	getMenuURL         = "/api/user/menu"
+	getUserMenusURL    = "/api/user/menus"
+	deleteMenuURL      = "/api/user/menu/delete"
+	updateMenuURL      = "/api/user/menu/update"
+	updateMenuNameURL  = "/api/user/menu/update/name"
+	menuAddDrinkURL    = "/api/user/menu/add_drink"
+	menuDeleteDrinkURL = "/api/user/menu/delete_drink"
 )
 
 type handler struct {
@@ -63,8 +65,6 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPost, signInURL, apperror.Middleware(h.SignIn))
 	router.HandlerFunc(http.MethodGet, refreshURL, apperror.Middleware(h.UserRefresh))
 
-	//router.HandlerFunc(http.MethodPost, addDrinkURL, apperror.Middleware(h.AddDrink))
-
 	// Обработчики, доступные пользователям, вошедшим в аккаунт (которые имеют AccessToken)
 	router.HandlerFunc(http.MethodPatch, pUpdateUserURL, apperror.Middleware(h.Verify(h.PartiallyUpdateUser)))
 	router.HandlerFunc(http.MethodGet, getUserURL, apperror.Middleware(h.Verify(h.GetUserByUUID)))
@@ -72,11 +72,13 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodDelete, deleteUserURL, apperror.Middleware(h.Verify(h.DeleteUser)))
 
 	router.HandlerFunc(http.MethodPost, createMenuURL, apperror.Middleware(h.NewMenu))
+	router.HandlerFunc(http.MethodGet, getMenuURL, apperror.Middleware(h.GetMenu))
+	router.HandlerFunc(http.MethodGet, getUserMenusURL, apperror.Middleware(h.GetUserMenus))
 	router.HandlerFunc(http.MethodDelete, deleteMenuURL, apperror.Middleware(h.DeleteMenu))
 	router.HandlerFunc(http.MethodPut, updateMenuURL, apperror.Middleware(h.UpdateMenu))
 	router.HandlerFunc(http.MethodPut, updateMenuNameURL, apperror.Middleware(h.UpdateMenuName))
 	router.HandlerFunc(http.MethodPut, menuAddDrinkURL, apperror.Middleware(h.AddDrink))
-	router.HandlerFunc(http.MethodGet, getMenuURL, apperror.Middleware(h.GetMenu))
+	router.HandlerFunc(http.MethodDelete, menuDeleteDrinkURL, apperror.Middleware(h.DeleteDrink))
 }
 
 func (h *handler) SignUp(w http.ResponseWriter, r *http.Request) error {
@@ -342,7 +344,7 @@ func (h *handler) GetMenu(w http.ResponseWriter, r *http.Request) error {
 
 	menu, err := h.menuService.FindMenu(context.TODO(), dto)
 	if err != nil {
-		return err
+		return apperror.NewAppError(err, "wrong menu data", err.Error(), "US-000009")
 	}
 
 	menuBytes, err := json.Marshal(menu)
@@ -352,6 +354,30 @@ func (h *handler) GetMenu(w http.ResponseWriter, r *http.Request) error {
 
 	w.WriteHeader(200)
 	w.Write(menuBytes)
+
+	return nil
+}
+
+func (h *handler) GetUserMenus(w http.ResponseWriter, r *http.Request) error {
+	var dto menu.UserMenusDTO
+	dto.UserID = r.URL.Query().Get("user_id")
+
+	if dto.UserID == "" {
+		return apperror.NewAppError(nil, "query param is empty", "param user_id is empty", "US-000015")
+	}
+
+	menus, err := h.menuService.FindUserMenus(context.TODO(), dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong menu data", err.Error(), "US-000009")
+	}
+
+	menusBytes, err := json.Marshal(menus)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(200)
+	w.Write(menusBytes)
 
 	return nil
 }
@@ -366,7 +392,7 @@ func (h *handler) UpdateMenu(w http.ResponseWriter, r *http.Request) error {
 
 	err = h.menuService.UpdateMenu(context.TODO(), dto)
 	if err != nil {
-		return err
+		return apperror.NewAppError(err, "wrong update menu data", err.Error(), "US-000009")
 	}
 
 	w.WriteHeader(204)
@@ -385,7 +411,7 @@ func (h *handler) UpdateMenuName(w http.ResponseWriter, r *http.Request) error {
 
 	err = h.menuService.UpdateMenuName(context.TODO(), dto)
 	if err != nil {
-		return err
+		return apperror.NewAppError(err, "wrong update menu data", err.Error(), "US-000009")
 	}
 
 	w.WriteHeader(204)
@@ -402,13 +428,39 @@ func (h *handler) AddDrink(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	err = h.menuService.AddDrink(context.TODO(), dto)
+	var resp menu.RespAddDrinkDTO
+
+	resp.DrinkID, err = h.menuService.AddDrink(context.TODO(), dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong drink add data", err.Error(), "US-000009")
+	}
+
+	respBytes, err := json.Marshal(resp)
 	if err != nil {
 		return err
 	}
 
-	w.WriteHeader(204)
-	w.Write([]byte("drink added"))
+	w.WriteHeader(200)
+	w.Write(respBytes)
+
+	return nil
+}
+
+func (h *handler) DeleteDrink(w http.ResponseWriter, r *http.Request) error {
+	var dto menu.DeleteDrinkDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	err = h.menuService.DeleteDrink(context.TODO(), dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong drink delete data", err.Error(), "US-000009")
+	}
+
+	w.WriteHeader(200)
+	w.Write([]byte("drink is deleted"))
 
 	return nil
 }
