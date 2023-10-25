@@ -11,9 +11,12 @@ const (
 	StrongAlco = "strong_alcos"
 
 	// ice_types
-	CrashIce = "crash_ice"
-	CubeIce  = "cube_ice"
-	NoIce    = "no_ice"
+	BlockIce   = "block_ice"
+	CubedIce   = "cubed_ice"
+	CrackedIce = "cracked_ice"
+	NuggetIce  = "nugget_ice"
+	CrushedIce = "crushed_ice"
+	NoIce      = "no_ice"
 
 	// cooking_methods
 	Shake = "shake"

@@ -76,8 +76,8 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodGet, getUserMenusURL, apperror.Middleware(h.GetUserMenus))
 	router.HandlerFunc(http.MethodDelete, deleteMenuURL, apperror.Middleware(h.DeleteMenu))
 	router.HandlerFunc(http.MethodPut, updateMenuURL, apperror.Middleware(h.UpdateMenu))
-	router.HandlerFunc(http.MethodPut, updateMenuNameURL, apperror.Middleware(h.UpdateMenuName))
-	router.HandlerFunc(http.MethodPut, menuAddDrinkURL, apperror.Middleware(h.AddDrink))
+	router.HandlerFunc(http.MethodPatch, updateMenuNameURL, apperror.Middleware(h.UpdateMenuName))
+	router.HandlerFunc(http.MethodPost, menuAddDrinkURL, apperror.Middleware(h.AddDrink))
 	router.HandlerFunc(http.MethodDelete, menuDeleteDrinkURL, apperror.Middleware(h.DeleteDrink))
 }
 
@@ -396,7 +396,6 @@ func (h *handler) UpdateMenu(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.WriteHeader(204)
-	w.Write([]byte("menu is updated"))
 
 	return nil
 }
@@ -415,7 +414,6 @@ func (h *handler) UpdateMenuName(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.WriteHeader(204)
-	w.Write([]byte("menu name is updated"))
 
 	return nil
 }
@@ -428,14 +426,12 @@ func (h *handler) AddDrink(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	var resp menu.RespAddDrinkDTO
-
-	resp.DrinkID, err = h.menuService.AddDrink(context.TODO(), dto)
+	newDrink, err := h.menuService.AddDrink(context.TODO(), dto)
 	if err != nil {
 		return apperror.NewAppError(err, "wrong drink add data", err.Error(), "US-000009")
 	}
 
-	respBytes, err := json.Marshal(resp)
+	respBytes, err := json.Marshal(newDrink)
 	if err != nil {
 		return err
 	}

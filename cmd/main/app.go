@@ -10,15 +10,18 @@ import (
 	"path/filepath"
 	bar_api "restapi/internal/adapters/api/bar"
 	event_api "restapi/internal/adapters/api/event"
+	ingredients_api "restapi/internal/adapters/api/ingredients"
 	user_api "restapi/internal/adapters/api/user"
 	bar_db "restapi/internal/adapters/db/bar"
 	event_db "restapi/internal/adapters/db/event"
+	ingredients_db "restapi/internal/adapters/db/ingredients"
 	menu_db "restapi/internal/adapters/db/menu"
 	session_db "restapi/internal/adapters/db/session"
 	user_db "restapi/internal/adapters/db/user"
 	"restapi/internal/config"
 	"restapi/internal/domain/bar"
 	"restapi/internal/domain/event"
+	"restapi/internal/domain/ingredients"
 	"restapi/internal/domain/menu"
 	"restapi/internal/domain/user"
 	"restapi/pkg/auth"
@@ -63,6 +66,9 @@ func main() {
 	logger.Info("creating event repository")
 	eventRepository := event_db.NewRepository(postgreSQLClient, logger)
 
+	logger.Info("creating ingredients repository")
+	ingredientsRepository := ingredients_db.NewRepository(postgreSQLClient, logger)
+
 	logger.Info("creating bar repository")
 	barRepository := bar_db.NewRepository(postgreSQLClient, logger)
 
@@ -76,6 +82,9 @@ func main() {
 	logger.Info("register event service")
 	eventService := event.NewService(eventRepository, logger)
 
+	logger.Info("register ingredients service")
+	ingredientsService := ingredients.NewService(ingredientsRepository, logger)
+
 	logger.Info("register bar service")
 	barService := bar.NewService(barRepository, logger)
 
@@ -88,12 +97,16 @@ func main() {
 	logger.Info("register event handler")
 	eventHandler := event_api.NewHandler(logger, eventService, userService, barService)
 
+	logger.Info("register ingredients handler")
+	ingredientsHandler := ingredients_api.NewHandler(logger, ingredientsService)
+
 	logger.Info("register bar handler")
 	barHandler := bar_api.NewHandler(logger, barService, userService, hub)
 
 	userHandler.Register(router)
 	eventHandler.Register(router)
 	barHandler.Register(router)
+	ingredientsHandler.Register(router)
 
 	start(router, cfg)
 }

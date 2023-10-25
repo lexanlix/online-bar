@@ -12,7 +12,7 @@ type Service interface {
 	FindUserMenus(context.Context, UserMenusDTO) (RespUserMenus, error)
 	UpdateMenu(context.Context, UpdateMenuDTO) error
 	UpdateMenuName(context.Context, UpdateMenuNameDTO) error
-	AddDrink(context.Context, AddDrinkDTO) (string, error)
+	AddDrink(context.Context, AddDrinkDTO) (Drink, error)
 	DeleteDrink(context.Context, DeleteDrinkDTO) error
 }
 
@@ -117,18 +117,29 @@ func (s *service) UpdateMenuName(ctx context.Context, dto UpdateMenuNameDTO) err
 	return nil
 }
 
-func (s *service) AddDrink(ctx context.Context, dto AddDrinkDTO) (string, error) {
+func (s *service) AddDrink(ctx context.Context, dto AddDrinkDTO) (Drink, error) {
 	s.logger.Infof("adding drink to menu %s", dto.MenuID)
 
 	drinkID, err := s.repository.AddDrink(ctx, dto)
 
 	if err != nil {
-		return "", err
+		return Drink{}, err
+	}
+
+	dr := Drink{
+		ID:             drinkID,
+		Name:           dto.Drink.Name,
+		Category:       dto.Drink.Category,
+		Cooking_method: dto.Drink.Cooking_method,
+		Composition:    dto.Drink.Composition,
+		OrderIceType:   dto.Drink.OrderIceType,
+		Price:          dto.Drink.Price,
+		BarsID:         dto.Drink.BarsID,
 	}
 
 	s.logger.Infof("drink added to menu")
 
-	return drinkID, nil
+	return dr, nil
 }
 
 func (s *service) DeleteDrink(ctx context.Context, dto DeleteDrinkDTO) error {

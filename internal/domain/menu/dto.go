@@ -57,10 +57,6 @@ type AddDrinkDTO struct {
 	Drink  NewDrinkDTO `json:"drink"`
 }
 
-type RespAddDrinkDTO struct {
-	DrinkID string `json:"drink_id"`
-}
-
 type DeleteDrinkDTO struct {
 	DrinkID string `json:"drink_id"`
 }
