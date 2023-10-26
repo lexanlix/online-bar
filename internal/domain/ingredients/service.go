@@ -2,6 +2,7 @@ package ingredients
 
 import (
 	"context"
+	"fmt"
 	"restapi/pkg/logging"
 )
 
@@ -13,6 +14,7 @@ type Service interface {
 	FindIngredient(context.Context, FindIngredientDTO) (Ingredient, error)
 	FindEventIngredients(context.Context, FindEventIngredientsDTO) (RespEventIngredients, error)
 	UpdateIngredient(context.Context, UpdateIngredientDTO) error
+	Validate(AddIngredientsDTO) error
 }
 
 type service struct {
@@ -126,6 +128,26 @@ func (s *service) UpdateIngredient(ctx context.Context, dto UpdateIngredientDTO)
 	}
 
 	s.logger.Infof("ingredient %s is updated", updatedID)
+
+	return nil
+}
+
+// TODO
+func (s *service) Validate(dto AddIngredientsDTO) error {
+
+	// Добавить проверку на то, что список ингредиентов для данного ивента уже создан
+
+	if dto.UserID == "" {
+		return fmt.Errorf("user id field is empty")
+	}
+
+	if dto.EventID == "" {
+		return fmt.Errorf("event id field is empty")
+	}
+
+	if len(dto.Ingredients) == 0 {
+		return fmt.Errorf("ingredients list is empty")
+	}
 
 	return nil
 }

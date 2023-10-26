@@ -56,9 +56,14 @@ func (h *handler) NewIngrList(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	err = h.service.Validate(dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong ingredient list add data", err.Error(), "US-000009")
+	}
+
 	err = h.service.NewIngredients(context.Background(), dto)
 	if err != nil {
-		return err
+		return apperror.NewAppError(err, "wrong ingredient list add data", err.Error(), "US-000009")
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -76,7 +81,7 @@ func (h *handler) AddIngr(w http.ResponseWriter, r *http.Request) error {
 
 	err = h.service.AddIngredient(context.Background(), dto)
 	if err != nil {
-		return err
+		return apperror.NewAppError(err, "wrong ingredient add data", err.Error(), "US-000009")
 	}
 
 	w.WriteHeader(http.StatusNoContent)
