@@ -9,10 +9,12 @@ import (
 	"path"
 	"path/filepath"
 	bar_api "restapi/internal/adapters/api/bar"
+	drinks_list_api "restapi/internal/adapters/api/drinks_list"
 	event_api "restapi/internal/adapters/api/event"
 	ingredients_api "restapi/internal/adapters/api/ingredients"
 	user_api "restapi/internal/adapters/api/user"
 	bar_db "restapi/internal/adapters/db/bar"
+	drinks_list_db "restapi/internal/adapters/db/drinks_list"
 	event_db "restapi/internal/adapters/db/event"
 	ingredients_db "restapi/internal/adapters/db/ingredients"
 	menu_db "restapi/internal/adapters/db/menu"
@@ -20,6 +22,7 @@ import (
 	user_db "restapi/internal/adapters/db/user"
 	"restapi/internal/config"
 	"restapi/internal/domain/bar"
+	"restapi/internal/domain/drinks_list"
 	"restapi/internal/domain/event"
 	"restapi/internal/domain/ingredients"
 	"restapi/internal/domain/menu"
@@ -75,6 +78,9 @@ func main() {
 	logger.Info("creating menu repository")
 	menuRepository := menu_db.NewRepository(postgreSQLClient, logger)
 
+	logger.Info("creating drinks_list repository")
+	drinks_listRepository := drinks_list_db.NewRepository(postgreSQLClient, logger)
+
 	logger.Info("register user service")
 	userService := user.NewService(userRepository, sessionRepository, logger, hasher, tokenManager,
 		cfg.Tokens.AccessTokenTTL, cfg.Tokens.RefreshTokenTTL)
@@ -91,6 +97,9 @@ func main() {
 	logger.Info("register menu service")
 	menuService := menu.NewService(menuRepository, logger)
 
+	logger.Info("register drinks_list service")
+	drinks_listService := drinks_list.NewService(drinks_listRepository, logger)
+
 	logger.Info("register user handler")
 	userHandler := user_api.NewHandler(logger, userService, eventService, barService, menuService)
 
@@ -103,10 +112,14 @@ func main() {
 	logger.Info("register bar handler")
 	barHandler := bar_api.NewHandler(logger, barService, userService, hub)
 
+	logger.Info("register drinks_list handler")
+	drinks_listHandler := drinks_list_api.NewHandler(logger, drinks_listService)
+
 	userHandler.Register(router)
 	eventHandler.Register(router)
 	barHandler.Register(router)
 	ingredientsHandler.Register(router)
+	drinks_listHandler.Register(router)
 
 	start(router, cfg)
 }
