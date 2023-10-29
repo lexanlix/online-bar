@@ -249,7 +249,7 @@ func EncodeComposition(comp *menu.Composition) string {
 	buffer.WriteString("] AS Solid_bulk []), CAST(ARRAY[")
 
 	for _, solidUnit := range comp.SolidsUnit {
-		buffer.WriteString(fmt.Sprintf("('%s', %d)", solidUnit.Name, solidUnit.Amount))
+		buffer.WriteString(fmt.Sprintf("('%s', %d)", solidUnit.Name, solidUnit.Volume))
 
 		// Если это последний элемент массива, то "," в конце не ставим
 		if solidUnit == comp.SolidsUnit[len(comp.SolidsUnit)-1] {

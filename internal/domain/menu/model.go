@@ -70,5 +70,5 @@ type SolidBulk struct {
 // Твердые ингридиенты, считающиеся в штуках
 type SolidUnit struct {
 	Name   string `json:"name"`
-	Amount uint32 `json:"amount"`
+	Volume uint32 `json:"volume"`
 }

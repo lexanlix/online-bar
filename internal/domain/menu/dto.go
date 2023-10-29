@@ -1,9 +1,15 @@
 package menu
 
-type CreateMenuDTO struct {
+type MenuDTO struct {
 	UserID string                   `json:"user_id"`
 	Name   string                   `json:"name"`
 	Drinks map[string][]NewDrinkDTO `json:"drinks,omitempty"`
+}
+
+type CreateMenuDTO struct {
+	UserID    string   `json:"user_id"`
+	Name      string   `json:"name"`
+	DrinksIDs []string `json:"drinks,omitempty"`
 }
 
 type NewDrinkDTO struct {
@@ -55,6 +61,11 @@ type UserMenu struct {
 type AddDrinkDTO struct {
 	MenuID string      `json:"menu_id"`
 	Drink  NewDrinkDTO `json:"drink"`
+}
+
+type AddDrinkFromListDTO struct {
+	MenuID  string `json:"menu_id"`
+	DrinkID string `json:"drink_id"`
 }
 
 type DeleteDrinkDTO struct {

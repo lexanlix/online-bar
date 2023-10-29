@@ -30,7 +30,7 @@ type repository struct {
 	logger *logging.Logger
 }
 
-func (r *repository) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO, totalCost uint32) (string, error) {
+func (r *repository) CreateMenu(ctx context.Context, dto menu.MenuDTO, totalCost uint32) (string, error) {
 	tx, err := r.client.Begin(ctx)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -76,7 +76,7 @@ func (r *repository) CreateMenu(ctx context.Context, dto menu.CreateMenuDTO, tot
 	sub_q := EncodeInsertValue(&dto.Drinks, menuID)
 
 	q_drinks := fmt.Sprintf(`
-	INSERT INTO drinks
+	INSERT INTO menu_drinks
 		(menu_id, name, category, cooking_method, composition, ice_type, price, bars_id)
 	VALUES
     	%s
@@ -155,7 +155,7 @@ func (r *repository) DeleteMenu(ctx context.Context, dto menu.DeleteMenuDTO) err
 
 	q = `
 	DELETE FROM 
-		drinks
+		menu_drinks
 	WHERE
     	menu_id = $1
 	`
@@ -212,7 +212,7 @@ func (r *repository) FindMenu(ctx context.Context, dto menu.FindMenuDTO) (menu.M
 	SELECT
 		category, id, name, cooking_method, composition, ice_type, price, bars_id
 	FROM 
-		drinks
+		menu_drinks
 	WHERE 
 		menu_id = $1
 	GROUP BY id
@@ -346,7 +346,7 @@ func (r *repository) UpdateMenu(ctx context.Context, dto menu.UpdateMenuDTO, tot
 			comp := EncodeUpdateValue(&drink.Composition)
 
 			q = fmt.Sprintf(`
-			UPDATE drinks
+			UPDATE menu_drinks
 			SET
 				name = $2, category = $3, cooking_method = $4, composition = %s, 
 				ice_type = $5, price = $6, bars_id = $7
@@ -433,7 +433,7 @@ func (r *repository) AddDrink(ctx context.Context, dto menu.AddDrinkDTO) (string
 	comp := EncodeUpdateValue(&dto.Drink.Composition)
 
 	q := fmt.Sprintf(`
-	INSERT INTO drinks
+	INSERT INTO menu_drinks
 		(menu_id, name, category, cooking_method, composition, ice_type, price, bars_id)
 	VALUES
 		($1, $2, $3, $4, %s, $5, $6, $7)
@@ -515,7 +515,7 @@ func (r *repository) DeleteDrink(ctx context.Context, dto menu.DeleteDrinkDTO) e
 	}
 
 	q := `
-	DELETE FROM drinks
+	DELETE FROM menu_drinks
 	WHERE
 		id = $1
 	RETURNING
@@ -581,6 +581,105 @@ func (r *repository) DeleteDrink(ctx context.Context, dto menu.DeleteDrinkDTO) e
 	return nil
 }
 
+func (r *repository) FindUserDrink(ctx context.Context, drID string) (menu.NewDrinkDTO, error) {
+	q := `
+	SELECT
+		name, category, cooking_method, composition, ice_type, price, bars_id
+	FROM 
+		user_drinks
+	WHERE
+    	id = $1
+	`
+	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
+
+	var newDr menu.NewDrinkDTO
+	var composition string
+
+	row := r.client.QueryRow(ctx, q, drID)
+
+	err := row.Scan(&newDr.Name, &newDr.Category, &newDr.Cooking_method, &composition, &newDr.OrderIceType,
+		&newDr.Price, &newDr.BarsID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return menu.NewDrinkDTO{}, newErr
+		}
+
+		return menu.NewDrinkDTO{}, err
+	}
+
+	newDr.Composition, err = DecodeDrinkComposition(composition)
+	if err != nil {
+		err = fmt.Errorf("decode sql request error: %v", err)
+		return menu.NewDrinkDTO{}, err
+	}
+
+	return newDr, nil
+}
+
+func (r *repository) FindUserDrinks(ctx context.Context, drIDs []string) ([]menu.Drink, error) {
+	var ids string
+
+	for i, id := range drIDs {
+		ids += fmt.Sprintf("'%s'", id)
+
+		if i == len(drIDs)-1 {
+			break
+		}
+
+		ids += ","
+	}
+
+	q := fmt.Sprintf(`
+	SELECT
+		id, name, category, cooking_method, composition, ice_type, price, bars_id
+	FROM 
+		user_drinks
+	WHERE
+    	id IN (%s);
+	`, ids)
+	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
+
+	rows, err := r.client.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	var drinks []menu.Drink
+
+	for rows.Next() {
+		var composition string
+		var dr menu.Drink
+
+		err := rows.Scan(&dr.ID, &dr.Name, &dr.Category, &dr.Cooking_method, &composition,
+			&dr.OrderIceType, &dr.Price, &dr.BarsID)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				pgErr = err.(*pgconn.PgError)
+				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+				r.logger.Error(newErr)
+				return nil, newErr
+			}
+
+			return nil, err
+		}
+
+		dr.Composition, err = DecodeDrinkComposition(composition)
+		if err != nil {
+			err = fmt.Errorf("decode sql request error: %v", err)
+			return nil, err
+		}
+
+		drinks = append(drinks, dr)
+	}
+
+	return drinks, nil
+}
+
 func NewRepository(client postgresql.Client, logger *logging.Logger) menu.Repository {
 	return &repository{
 		client: client,
@@ -628,7 +727,7 @@ func EncodeInsertValue(drinkGroups *map[string][]menu.NewDrinkDTO, menuID string
 			buffer.WriteString("] AS Solid_bulk []), CAST(ARRAY[")
 
 			for _, solidUnit := range drink.Composition.SolidsUnit {
-				buffer.WriteString(fmt.Sprintf("('%s', %d)", solidUnit.Name, solidUnit.Amount))
+				buffer.WriteString(fmt.Sprintf("('%s', %d)", solidUnit.Name, solidUnit.Volume))
 
 				// Если это последний элемент массива, то "," в конце не ставим
 				if solidUnit == drink.Composition.SolidsUnit[len(drink.Composition.SolidsUnit)-1] {
@@ -698,7 +797,7 @@ func EncodeUpdateValue(comp *menu.Composition) string {
 	buffer.WriteString("] AS Solid_bulk []), CAST(ARRAY[")
 
 	for _, solidUnit := range comp.SolidsUnit {
-		buffer.WriteString(fmt.Sprintf("('%s', %d)", solidUnit.Name, solidUnit.Amount))
+		buffer.WriteString(fmt.Sprintf("('%s', %d)", solidUnit.Name, solidUnit.Volume))
 
 		// Если это последний элемент массива, то "," в конце не ставим
 		if solidUnit == comp.SolidsUnit[len(comp.SolidsUnit)-1] {

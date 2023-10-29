@@ -30,14 +30,15 @@ const (
 	pUpdateUserURL = "/api/user/update/part"
 	deleteUserURL  = "/api/user/delete"
 
-	createMenuURL      = "/api/user/menu/new"
-	getMenuURL         = "/api/user/menu"
-	getUserMenusURL    = "/api/user/menus"
-	deleteMenuURL      = "/api/user/menu/delete"
-	updateMenuURL      = "/api/user/menu/update"
-	updateMenuNameURL  = "/api/user/menu/update/name"
-	menuAddDrinkURL    = "/api/user/menu/add_drink"
-	menuDeleteDrinkURL = "/api/user/menu/delete_drink"
+	createMenuURL        = "/api/user/menu/new"
+	getMenuURL           = "/api/user/menu"
+	getUserMenusURL      = "/api/user/menus"
+	deleteMenuURL        = "/api/user/menu/delete"
+	updateMenuURL        = "/api/user/menu/update"
+	updateMenuNameURL    = "/api/user/menu/update/name"
+	menuAddDrinkURL      = "/api/user/menu/add_drink"
+	menuAddDrFromListURL = "/api/user/menu/add_drink_from_list"
+	menuDeleteDrinkURL   = "/api/user/menu/delete_drink"
 )
 
 type handler struct {
@@ -78,6 +79,7 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPut, updateMenuURL, apperror.Middleware(h.UpdateMenu))
 	router.HandlerFunc(http.MethodPatch, updateMenuNameURL, apperror.Middleware(h.UpdateMenuName))
 	router.HandlerFunc(http.MethodPost, menuAddDrinkURL, apperror.Middleware(h.AddDrink))
+	router.HandlerFunc(http.MethodPost, menuAddDrFromListURL, apperror.Middleware(h.AddDrinkFromList))
 	router.HandlerFunc(http.MethodDelete, menuDeleteDrinkURL, apperror.Middleware(h.DeleteDrink))
 }
 
@@ -427,6 +429,30 @@ func (h *handler) AddDrink(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	newDrink, err := h.menuService.AddDrink(context.TODO(), dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong drink add data", err.Error(), "US-000009")
+	}
+
+	respBytes, err := json.Marshal(newDrink)
+	if err != nil {
+		return err
+	}
+
+	w.WriteHeader(200)
+	w.Write(respBytes)
+
+	return nil
+}
+
+func (h *handler) AddDrinkFromList(w http.ResponseWriter, r *http.Request) error {
+	var dto menu.AddDrinkFromListDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	newDrink, err := h.menuService.AddDrinkFromList(context.TODO(), dto)
 	if err != nil {
 		return apperror.NewAppError(err, "wrong drink add data", err.Error(), "US-000009")
 	}

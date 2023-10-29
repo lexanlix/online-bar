@@ -2,6 +2,7 @@ package menu
 
 import (
 	"context"
+	"fmt"
 	"restapi/pkg/logging"
 )
 
@@ -13,6 +14,7 @@ type Service interface {
 	UpdateMenu(context.Context, UpdateMenuDTO) error
 	UpdateMenuName(context.Context, UpdateMenuNameDTO) error
 	AddDrink(context.Context, AddDrinkDTO) (Drink, error)
+	AddDrinkFromList(context.Context, AddDrinkFromListDTO) (Drink, error)
 	DeleteDrink(context.Context, DeleteDrinkDTO) error
 }
 
@@ -31,9 +33,36 @@ func NewService(repository Repository, logger *logging.Logger) Service {
 func (s *service) NewMenu(ctx context.Context, dto CreateMenuDTO) (string, error) {
 	s.logger.Infof("creating menu %s", dto.Name)
 
-	totalCost := s.GetTotalCost(dto.Drinks)
+	drinks, err := s.repository.FindUserDrinks(ctx, dto.DrinksIDs)
+	if err != nil {
+		return "", fmt.Errorf("finding in drink list error: %v", err)
+	}
 
-	menuID, err := s.repository.CreateMenu(ctx, dto, totalCost)
+	drMap := make(map[string][]NewDrinkDTO, 0)
+
+	for _, drink := range drinks {
+		newDr := NewDrinkDTO{
+			Name:           drink.Name,
+			Category:       drink.Category,
+			Cooking_method: drink.Cooking_method,
+			Composition:    drink.Composition,
+			OrderIceType:   drink.OrderIceType,
+			Price:          drink.Price,
+			BarsID:         drink.BarsID,
+		}
+
+		drMap[drink.Category] = append(drMap[drink.Category], newDr)
+	}
+
+	MenuDTO := MenuDTO{
+		UserID: dto.UserID,
+		Name:   dto.Name,
+		Drinks: drMap,
+	}
+
+	totalCost := s.GetTotalCost(MenuDTO.Drinks)
+
+	menuID, err := s.repository.CreateMenu(ctx, MenuDTO, totalCost)
 
 	if err != nil {
 		return "", err
@@ -138,6 +167,41 @@ func (s *service) AddDrink(ctx context.Context, dto AddDrinkDTO) (Drink, error) 
 	}
 
 	s.logger.Infof("drink added to menu")
+
+	return dr, nil
+}
+
+func (s *service) AddDrinkFromList(ctx context.Context, dto AddDrinkFromListDTO) (Drink, error) {
+	s.logger.Infof("adding drink to menu %s from drink list", dto.MenuID)
+
+	newDrDTO, err := s.repository.FindUserDrink(ctx, dto.DrinkID)
+	if err != nil {
+		return Drink{}, fmt.Errorf("finding in drink list error: %v", err)
+	}
+
+	AddDrinkDTO := AddDrinkDTO{
+		MenuID: dto.MenuID,
+		Drink:  newDrDTO,
+	}
+
+	drinkID, err := s.repository.AddDrink(ctx, AddDrinkDTO)
+
+	if err != nil {
+		return Drink{}, err
+	}
+
+	dr := Drink{
+		ID:             drinkID,
+		Name:           newDrDTO.Name,
+		Category:       newDrDTO.Category,
+		Cooking_method: newDrDTO.Cooking_method,
+		Composition:    newDrDTO.Composition,
+		OrderIceType:   newDrDTO.OrderIceType,
+		Price:          newDrDTO.Price,
+		BarsID:         newDrDTO.BarsID,
+	}
+
+	s.logger.Infof("drink from drink list added to menu")
 
 	return dr, nil
 }
