@@ -47,12 +47,12 @@ func NewHandler(logger *logging.Logger, service event.Service, userService user.
 }
 
 func (h *handler) Register(router *httprouter.Router) {
-	router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.Verify(h.CreateEvent)))
-	router.HandlerFunc(http.MethodDelete, completeEventURL, apperror.Middleware(h.Verify(h.CompleteEvent)))
-	router.HandlerFunc(http.MethodGet, getEventsByHostURL, apperror.Middleware(h.Verify(h.GetAllByHostID)))
-	router.HandlerFunc(http.MethodGet, getEventByIDurl, apperror.Middleware(h.Verify(h.GetByID)))
-	router.HandlerFunc(http.MethodGet, getEventOrdersURL, apperror.Middleware(h.Verify(h.GetEventOrders)))
-	router.HandlerFunc(http.MethodPut, updateEventURL, apperror.Middleware(h.Verify(h.UpdateEvent)))
+	router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.CreateEvent))
+	router.HandlerFunc(http.MethodDelete, completeEventURL, apperror.Middleware(h.CompleteEvent))
+	router.HandlerFunc(http.MethodGet, getEventsByHostURL, apperror.Middleware(h.GetAllByHostID))
+	router.HandlerFunc(http.MethodGet, getEventByIDurl, apperror.Middleware(h.GetByID))
+	router.HandlerFunc(http.MethodGet, getEventOrdersURL, apperror.Middleware(h.GetEventOrders))
+	router.HandlerFunc(http.MethodPut, updateEventURL, apperror.Middleware(h.UpdateEvent))
 }
 
 func (h *handler) CreateEvent(w http.ResponseWriter, r *http.Request) error {
@@ -63,9 +63,9 @@ func (h *handler) CreateEvent(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	eventID, err2 := h.service.NewEvent(context.TODO(), dto)
+	eventID, err := h.service.NewEvent(context.TODO(), dto)
 	if err != nil {
-		return err2
+		return err
 	}
 
 	resp := event.RespCreateEvent{

@@ -23,12 +23,12 @@ type repository struct {
 	logger *logging.Logger
 }
 
-func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO) (string, error) {
+func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO, shopList []string) (string, error) {
 	q := `
 	INSERT INTO events
-    	(host_id, name, description, participants_number, date_time, status)
+    	(host_id, name, description, participants_number, date_time, status, menu_id, shopping_list)
 	VALUES
-    	($1, $2, $3, $4, $5, $6)
+    	($1, $2, $3, $4, $5, $6, $7, $8)
 	RETURNING
     	id
 	`
@@ -37,7 +37,7 @@ func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO) 
 	var eventID string
 
 	row := r.client.QueryRow(ctx, q, dto.HostID, dto.Name, dto.Description, dto.ParticipantsNumber,
-		dto.DateTime, statusCreated)
+		dto.DateTime, statusCreated, dto.MenuID, shopList)
 	err := row.Scan(&eventID)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -158,10 +158,10 @@ func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEve
 	return events, nil
 }
 
-func (r *repository) FindOneUserEvent(ctx context.Context, dto event.FindEventDTO) (event.Event, error) {
+func (r *repository) FindUserEvent(ctx context.Context, dto event.FindEventDTO) (event.Event, error) {
 	q := `
 	SELECT 
-    	id, host_id, name, description, participants_number, date_time, status
+    	id, host_id, name, description, participants_number, date_time, status, menu_id, shopping_list
 	FROM 
     	events
 	WHERE
@@ -171,8 +171,8 @@ func (r *repository) FindOneUserEvent(ctx context.Context, dto event.FindEventDT
 
 	var evnt event.Event
 
-	err := r.client.QueryRow(ctx, q, dto.ID, dto.HostID).Scan(&evnt.ID, &evnt.HostID, &evnt.Name,
-		&evnt.Description, &evnt.ParticipantsNumber, &evnt.DateTime, &evnt.Status)
+	err := r.client.QueryRow(ctx, q, dto.ID, dto.HostID).Scan(&evnt.ID, &evnt.HostID, &evnt.Name, &evnt.Description,
+		&evnt.ParticipantsNumber, &evnt.DateTime, &evnt.Status, &evnt.MenuID, &evnt.ShoppingList)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {

@@ -639,7 +639,7 @@ func (r *repository) FindUserDrinks(ctx context.Context, drIDs []string) ([]menu
 	FROM 
 		user_drinks
 	WHERE
-    	id IN (%s);
+    	id IN (%s)
 	`, ids)
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 

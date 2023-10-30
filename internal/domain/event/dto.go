@@ -8,6 +8,7 @@ type CreateEventDTO struct {
 	Description        string    `json:"info"`
 	ParticipantsNumber uint32    `json:"participants_number"`
 	DateTime           time.Time `json:"date_time"`
+	MenuID             string    `json:"menu_id"`
 }
 
 type CompleteEventDTO struct {

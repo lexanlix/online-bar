@@ -2,6 +2,8 @@ package event
 
 import (
 	"context"
+	"fmt"
+	"restapi/internal/domain/menu"
 	"restapi/pkg/logging"
 	"time"
 )
@@ -13,19 +15,18 @@ type Service interface {
 	FindAllUserEvents(context.Context, FindAllEventsDTO) ([]Event, error)
 	FindEvent(context.Context, FindEventDTO) (Event, error)
 	UpdateEvent(context.Context, UpdateEventDTO) error
-
-	//SetMenu(context.Context, menu.CreateMenuDTO) (menu.Menu, error)
-	//UpdateMenu(context.Context) error
 }
 
 type service struct {
 	repository Repository
+	menuRepos  menu.Repository
 	logger     *logging.Logger
 }
 
-func NewService(repository Repository, logger *logging.Logger) Service {
+func NewService(repository Repository, menuRepos menu.Repository, logger *logging.Logger) Service {
 	return &service{
 		repository: repository,
+		menuRepos:  menuRepos,
 		logger:     logger,
 	}
 }
@@ -37,7 +38,19 @@ func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (string, err
 	timeUntil := (time.Until(dto.DateTime) - (3 * time.Hour))
 	timer := time.NewTimer(timeUntil)
 
-	eventID, err := s.repository.CreateEvent(ctx, dto)
+	// Получить напитки из меню и найти наименования всех ингредиентов
+	menuDTO := menu.FindMenuDTO{
+		ID: dto.MenuID,
+	}
+
+	menu, err := s.menuRepos.FindMenu(ctx, menuDTO)
+	if err != nil {
+		return "", fmt.Errorf("finding menu error: %v", err)
+	}
+
+	shopList := s.GetShoppingList(menu)
+
+	eventID, err := s.repository.CreateEvent(ctx, dto, shopList)
 
 	if err != nil {
 		return "", err
@@ -96,7 +109,7 @@ func (s *service) FindAllUserEvents(ctx context.Context, dto FindAllEventsDTO) (
 func (s *service) FindEvent(ctx context.Context, dto FindEventDTO) (Event, error) {
 	s.logger.Infof("find one user event, user_id: %s, event_id: %s", dto.HostID, dto.ID)
 
-	evnt, err := s.repository.FindOneUserEvent(ctx, dto)
+	evnt, err := s.repository.FindUserEvent(ctx, dto)
 
 	if err != nil {
 		return Event{}, err
@@ -122,15 +135,43 @@ func (s *service) UpdateEvent(ctx context.Context, dto UpdateEventDTO) error {
 	return nil
 }
 
-// // Править
-// func (s *service) SetMenu(ctx context.Context, dto menu.CreateMenuDTO) (menu.Menu, error) {
-// 	newMenu := menu.NewMenu(dto.ID, dto.Name, dto.Drinks)
-// 	newMenu.UpdateTotalCost()
+// Может быть как то оптимизировать?
+func (s *service) GetShoppingList(menu menu.Menu) []string {
+	Hash := make(map[string]bool, 0)
 
-// 	return newMenu, nil
-// }
+	for _, drinks := range menu.Drinks {
+		for _, drink := range drinks {
+			for _, liq := range drink.Composition.Liquids {
+				Hash[liq.Name] = true
+			}
 
-// // Править
-// func (s *service) UpdateMenu(context.Context) error {
-// 	panic("TODO this")
-// }
+			for _, solB := range drink.Composition.SolidsBulk {
+				Hash[solB.Name] = true
+			}
+
+			for _, solU := range drink.Composition.SolidsUnit {
+				Hash[solU.Name] = true
+			}
+
+			switch drink.OrderIceType {
+			case "block_ice":
+				Hash["Лед блоками (block)"] = true
+			case "cubed_ice":
+				Hash["Лед кубиками (cubed)"] = true
+			case "cracked_ice":
+				Hash["Ломаный лед (cracked)"] = true
+			case "nugget_ice":
+				Hash["Пальчиковый лед (nugget)"] = true
+			case "crushed_ice":
+				Hash["Дробленый лед (crushed)"] = true
+			}
+		}
+	}
+
+	list := make([]string, 0, len(Hash))
+	for k := range Hash {
+		list = append(list, k)
+	}
+
+	return list
+}

@@ -86,7 +86,7 @@ func main() {
 		cfg.Tokens.AccessTokenTTL, cfg.Tokens.RefreshTokenTTL)
 
 	logger.Info("register event service")
-	eventService := event.NewService(eventRepository, logger)
+	eventService := event.NewService(eventRepository, menuRepository, logger)
 
 	logger.Info("register ingredients service")
 	ingredientsService := ingredients.NewService(ingredientsRepository, logger)

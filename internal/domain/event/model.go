@@ -13,5 +13,7 @@ type Event struct {
 	ParticipantsNumber uint32        `json:"participants_number"`
 	DateTime           time.Time     `json:"date_time"`
 	Status             string        `json:"status"`
+	MenuID             string        `json:"menu_id"`
+	ShoppingList       []string      `json:"shopping_list"`
 	Report             report.Report `json:"report"`
 }

@@ -9,7 +9,7 @@ type MenuDTO struct {
 type CreateMenuDTO struct {
 	UserID    string   `json:"user_id"`
 	Name      string   `json:"name"`
-	DrinksIDs []string `json:"drinks,omitempty"`
+	DrinksIDs []string `json:"drinks_id,omitempty"`
 }
 
 type NewDrinkDTO struct {
