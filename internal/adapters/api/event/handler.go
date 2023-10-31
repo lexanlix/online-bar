@@ -48,7 +48,7 @@ func NewHandler(logger *logging.Logger, service event.Service, userService user.
 
 func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodPost, createEventURL, apperror.Middleware(h.CreateEvent))
-	router.HandlerFunc(http.MethodDelete, completeEventURL, apperror.Middleware(h.CompleteEvent))
+	router.HandlerFunc(http.MethodPatch, completeEventURL, apperror.Middleware(h.CompleteEvent))
 	router.HandlerFunc(http.MethodGet, getEventsByHostURL, apperror.Middleware(h.GetAllByHostID))
 	router.HandlerFunc(http.MethodGet, getEventByIDurl, apperror.Middleware(h.GetByID))
 	router.HandlerFunc(http.MethodGet, getEventOrdersURL, apperror.Middleware(h.GetEventOrders))
@@ -101,24 +101,24 @@ func (h *handler) CompleteEvent(w http.ResponseWriter, r *http.Request) error {
 func (h *handler) GetAllByHostID(w http.ResponseWriter, r *http.Request) error {
 	var dto event.FindAllEventsDTO
 
-	dto.HostID = r.URL.Query().Get("user_id")
+	dto.UserID = r.URL.Query().Get("user_id")
 
-	if dto.HostID == "" {
+	if dto.UserID == "" {
 		return apperror.NewAppError(nil, "query param is empty", "param user_id is empty", "US-000015")
 	}
 
-	allUserEvents, err := h.service.FindAllUserEvents(context.TODO(), dto)
+	resp, err := h.service.FindAllUserEvents(context.TODO(), dto)
 	if err != nil {
 		return apperror.NewAppError(err, "wrong id", err.Error(), "US-000009")
 	}
 
-	allBytes, err := json.Marshal(allUserEvents)
+	respBytes, err := json.Marshal(resp)
 	if err != nil {
 		return err
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(allBytes)
+	w.Write(respBytes)
 
 	return nil
 }
@@ -127,10 +127,10 @@ func (h *handler) GetByID(w http.ResponseWriter, r *http.Request) error {
 	var dto event.FindEventDTO
 
 	dto.ID = r.URL.Query().Get("event_id")
-	dto.HostID = r.URL.Query().Get("user_id")
+	dto.UserID = r.URL.Query().Get("user_id")
 
-	if dto.HostID == "" || dto.ID == "" {
-		if dto.HostID == "" {
+	if dto.UserID == "" || dto.ID == "" {
+		if dto.UserID == "" {
 			return apperror.NewAppError(nil, "query param is empty", "param user_id is empty", "US-000015")
 		} else {
 			return apperror.NewAppError(nil, "query param is empty", "param event_id is empty", "US-000015")
@@ -153,6 +153,7 @@ func (h *handler) GetByID(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// TODO
 func (h *handler) GetEventOrders(w http.ResponseWriter, r *http.Request) error {
 	var dto bar.GetOrdersDTO
 
@@ -191,8 +192,7 @@ func (h *handler) UpdateEvent(w http.ResponseWriter, r *http.Request) error {
 		return apperror.NewAppError(err, "wrong id", err.Error(), "US-000009")
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("event is updated"))
+	w.WriteHeader(http.StatusNoContent)
 
 	return nil
 }

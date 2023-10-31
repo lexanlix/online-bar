@@ -18,7 +18,7 @@ type Service interface {
 	NewEvent(context.Context, CreateEventDTO) (Event, error)
 	SetActive(timer *time.Timer, id string)
 	CompleteEvent(context.Context, CompleteEventDTO) error
-	FindAllUserEvents(context.Context, FindAllEventsDTO) ([]Event, error)
+	FindAllUserEvents(context.Context, FindAllEventsDTO) (RespAllEvents, error)
 	FindEvent(context.Context, FindEventDTO) (Event, error)
 	UpdateEvent(context.Context, UpdateEventDTO) error
 }
@@ -64,7 +64,7 @@ func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (Event, erro
 
 	evnt := Event{
 		ID:                 eventID,
-		HostID:             dto.HostID,
+		UserID:             dto.UserID,
 		Name:               dto.Name,
 		Description:        dto.Description,
 		ParticipantsNumber: dto.ParticipantsNumber,
@@ -107,25 +107,22 @@ func (s *service) CompleteEvent(ctx context.Context, dto CompleteEventDTO) error
 	return nil
 }
 
-func (s *service) FindAllUserEvents(ctx context.Context, dto FindAllEventsDTO) ([]Event, error) {
-	s.logger.Infof("find all user events, user_id: %s", dto.HostID)
+func (s *service) FindAllUserEvents(ctx context.Context, dto FindAllEventsDTO) (RespAllEvents, error) {
+	s.logger.Infof("find all user events, user_id: %s", dto.UserID)
 
 	events, err := s.repository.FindAllUserEvents(ctx, dto)
 
 	if err != nil {
-		return nil, err
+		return RespAllEvents{}, err
 	}
 
 	s.logger.Infof("all user events is found")
-	for n, evnt := range events {
-		s.logger.Tracef("\n%d event name: %s", n, evnt.Name)
-	}
 
 	return events, nil
 }
 
 func (s *service) FindEvent(ctx context.Context, dto FindEventDTO) (Event, error) {
-	s.logger.Infof("find one user event, user_id: %s, event_id: %s", dto.HostID, dto.ID)
+	s.logger.Infof("find one user event, user_id: %s, event_id: %s", dto.UserID, dto.ID)
 
 	evnt, err := s.repository.FindUserEvent(ctx, dto)
 

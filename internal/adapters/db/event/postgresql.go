@@ -26,7 +26,7 @@ type repository struct {
 func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO, shopList []string) (string, error) {
 	q := `
 	INSERT INTO events
-    	(host_id, name, description, participants_number, date_time, status, menu_id, shopping_list)
+    	(user_id, name, description, participants_number, date_time, status, menu_id, shopping_list)
 	VALUES
     	($1, $2, $3, $4, $5, $6, $7, $8)
 	RETURNING
@@ -36,7 +36,7 @@ func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO, 
 
 	var eventID string
 
-	row := r.client.QueryRow(ctx, q, dto.HostID, dto.Name, dto.Description, dto.ParticipantsNumber,
+	row := r.client.QueryRow(ctx, q, dto.UserID, dto.Name, dto.Description, dto.ParticipantsNumber,
 		dto.DateTime, statusCreated, dto.MenuID, shopList)
 	err := row.Scan(&eventID)
 	if err != nil {
@@ -113,28 +113,28 @@ func (r *repository) DeleteEvent(ctx context.Context, dto event.CompleteEventDTO
 	return status, nil
 }
 
-func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEventsDTO) ([]event.Event, error) {
+func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEventsDTO) (event.RespAllEvents, error) {
 	q := `
 	SELECT 
-    	id, host_id, name, description, participants_number, date_time, status
+    	id, user_id, name, description, participants_number, date_time, status
 	FROM 
     	events
 	WHERE
-    	host_id = $1
+		user_id = $1
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	rows, err := r.client.Query(ctx, q, dto.HostID)
+	rows, err := r.client.Query(ctx, q, dto.UserID)
 	if err != nil {
-		return nil, err
+		return event.RespAllEvents{}, err
 	}
 
-	events := make([]event.Event, 0)
+	var resp event.RespAllEvents
 
 	for rows.Next() {
 		var evnt event.Event
 
-		err = rows.Scan(&evnt.ID, &evnt.HostID, &evnt.Name, &evnt.Description,
+		err = rows.Scan(&evnt.ID, &evnt.UserID, &evnt.Name, &evnt.Description,
 			&evnt.ParticipantsNumber, &evnt.DateTime, &evnt.Status)
 		if err != nil {
 			var pgErr *pgconn.PgError
@@ -142,36 +142,36 @@ func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEve
 				pgErr = err.(*pgconn.PgError)
 				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
 				r.logger.Error(newErr)
-				return nil, newErr
+				return event.RespAllEvents{}, newErr
 			}
 
-			return nil, err
+			return event.RespAllEvents{}, err
 		}
 
-		events = append(events, evnt)
+		resp.Events = append(resp.Events, evnt)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return event.RespAllEvents{}, err
 	}
 
-	return events, nil
+	return resp, nil
 }
 
 func (r *repository) FindUserEvent(ctx context.Context, dto event.FindEventDTO) (event.Event, error) {
 	q := `
 	SELECT 
-    	id, host_id, name, description, participants_number, date_time, status, menu_id, shopping_list
+    	id, user_id, name, description, participants_number, date_time, status, menu_id, shopping_list
 	FROM 
     	events
 	WHERE
-    	id = $1 AND host_id = $2
+    	id = $1 AND user_id = $2
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
 	var evnt event.Event
 
-	err := r.client.QueryRow(ctx, q, dto.ID, dto.HostID).Scan(&evnt.ID, &evnt.HostID, &evnt.Name, &evnt.Description,
+	err := r.client.QueryRow(ctx, q, dto.ID, dto.UserID).Scan(&evnt.ID, &evnt.UserID, &evnt.Name, &evnt.Description,
 		&evnt.ParticipantsNumber, &evnt.DateTime, &evnt.Status, &evnt.MenuID, &evnt.ShoppingList)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -249,6 +249,7 @@ func (r *repository) UpdateIceTypesNum(ctx context.Context, onlyOneIceType bool,
 	return nil
 }
 
+// Вызывается при создании сессий баров. Проверить!
 func (r *repository) GetIceTypesNum(ctx context.Context, eventID string) (bool, error) {
 	q := `
 	SELECT 
