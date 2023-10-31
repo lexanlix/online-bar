@@ -9,4 +9,6 @@ type Repository interface {
 	FindUserEvent(context.Context, FindEventDTO) (Event, error)
 	UpdateEvent(context.Context, UpdateEventDTO) (string, error)
 	DeleteEvent(context.Context, CompleteEventDTO) (string, error)
+	UpdateIceTypesNum(context.Context, bool, string) error
+	GetIceTypesNum(context.Context, string) (bool, error)
 }

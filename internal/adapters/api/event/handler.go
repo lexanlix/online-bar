@@ -63,16 +63,12 @@ func (h *handler) CreateEvent(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	eventID, err := h.service.NewEvent(context.TODO(), dto)
+	event, err := h.service.NewEvent(context.TODO(), dto)
 	if err != nil {
 		return err
 	}
 
-	resp := event.RespCreateEvent{
-		ID: eventID,
-	}
-
-	respBytes, err := json.Marshal(resp)
+	respBytes, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}

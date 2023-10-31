@@ -1,9 +1,10 @@
 package ingredients
 
 type AddIngredientsDTO struct {
-	UserID      string              `json:"user_id"`
-	EventID     string              `json:"event_id"`
-	Ingredients []IngredientDataDTO `json:"ingredients"`
+	UserID         string              `json:"user_id"`
+	EventID        string              `json:"event_id"`
+	Ingredients    []IngredientDataDTO `json:"ingredients"`
+	OnlyOneIceType bool                `json:"only_one_ice_type"`
 }
 
 type IngredientDataDTO struct {
@@ -51,4 +52,9 @@ type UpdateIngredientDTO struct {
 
 type RespEventIngredients struct {
 	Ingredients []Ingredient `json:"ingredients"`
+}
+
+type UpdIceTypesNumDTO struct {
+	EventID        string `json:"event_id"`
+	OnlyOneIceType bool   `json:"only_one_ice_type"`
 }

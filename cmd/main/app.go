@@ -89,7 +89,7 @@ func main() {
 	eventService := event.NewService(eventRepository, menuRepository, logger)
 
 	logger.Info("register ingredients service")
-	ingredientsService := ingredients.NewService(ingredientsRepository, logger)
+	ingredientsService := ingredients.NewService(ingredientsRepository, eventRepository, logger)
 
 	logger.Info("register bar service")
 	barService := bar.NewService(barRepository, logger)

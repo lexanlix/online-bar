@@ -9,7 +9,7 @@ type Event struct {
 	ID                 string        `json:"id"`
 	HostID             string        `json:"host_id"`
 	Name               string        `json:"name"`
-	Description        string        `json:"info"`
+	Description        string        `json:"description"`
 	ParticipantsNumber uint32        `json:"participants_number"`
 	DateTime           time.Time     `json:"date_time"`
 	Status             string        `json:"status"`

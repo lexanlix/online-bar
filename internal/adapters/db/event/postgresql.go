@@ -218,6 +218,66 @@ func (r *repository) UpdateEvent(ctx context.Context, dto event.UpdateEventDTO) 
 	return updatedID, nil
 }
 
+func (r *repository) UpdateIceTypesNum(ctx context.Context, onlyOneIceType bool, eventID string) error {
+	q := `
+	UPDATE events
+	SET 
+		only_one_ice_type = $2
+	WHERE 
+		id = $1
+	`
+	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
+
+	ct, err := r.client.Exec(ctx, q, eventID, onlyOneIceType)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return newErr
+		}
+
+		return err
+	}
+
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database deleting error: event not found")
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) GetIceTypesNum(ctx context.Context, eventID string) (bool, error) {
+	q := `
+	SELECT 
+		only_one_ice_type
+	FROM
+		events
+	WHERE 
+		id = $1
+	`
+	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
+
+	var onlyOneIceType bool
+
+	err := r.client.QueryRow(ctx, q, eventID).Scan(&onlyOneIceType)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return false, newErr
+		}
+
+		return false, err
+	}
+
+	return onlyOneIceType, nil
+}
+
 func NewRepository(client postgresql.Client, logger *logging.Logger) event.Repository {
 	return &repository{
 		client: client,

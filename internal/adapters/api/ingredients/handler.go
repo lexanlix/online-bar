@@ -24,6 +24,7 @@ const (
 	deleteIngrListURL = "/api/event/ingr/delete_list"
 	deleteIngrURL     = "/api/event/ingr/delete"
 	updateIngrURL     = "/api/event/ingr/update"
+	updIceTypesNumURL = "/api/event/ingr/update/ice_types"
 )
 
 type handler struct {
@@ -46,6 +47,7 @@ func (h *handler) Register(router *httprouter.Router) {
 	router.HandlerFunc(http.MethodDelete, deleteIngrListURL, apperror.Middleware(h.DeleteIngrList))
 	router.HandlerFunc(http.MethodDelete, deleteIngrURL, apperror.Middleware(h.DeleteIngr))
 	router.HandlerFunc(http.MethodPut, updateIngrURL, apperror.Middleware(h.UpdateIngr))
+	router.HandlerFunc(http.MethodPatch, updIceTypesNumURL, apperror.Middleware(h.UpdateIceTypesNum))
 }
 
 func (h *handler) NewIngrList(w http.ResponseWriter, r *http.Request) error {
@@ -186,6 +188,24 @@ func (h *handler) UpdateIngr(w http.ResponseWriter, r *http.Request) error {
 	err = h.service.UpdateIngredient(context.Background(), dto)
 	if err != nil {
 		return apperror.NewAppError(err, "wrong update ingredient data", err.Error(), "US-000009")
+	}
+
+	w.WriteHeader(204)
+
+	return nil
+}
+
+func (h *handler) UpdateIceTypesNum(w http.ResponseWriter, r *http.Request) error {
+	var dto ingredients.UpdIceTypesNumDTO
+
+	err := json.NewDecoder(r.Body).Decode(&dto)
+	if err != nil {
+		return err
+	}
+
+	err = h.service.UpdateIceTypesNum(context.Background(), dto)
+	if err != nil {
+		return apperror.NewAppError(err, "wrong update ice types data", err.Error(), "US-000009")
 	}
 
 	w.WriteHeader(204)

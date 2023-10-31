@@ -8,8 +8,14 @@ import (
 	"time"
 )
 
+const (
+	statusCreated   = "Created"
+	statusActive    = "Active"
+	statusCompleted = "Completed"
+)
+
 type Service interface {
-	NewEvent(context.Context, CreateEventDTO) (string, error)
+	NewEvent(context.Context, CreateEventDTO) (Event, error)
 	SetActive(timer *time.Timer, id string)
 	CompleteEvent(context.Context, CompleteEventDTO) error
 	FindAllUserEvents(context.Context, FindAllEventsDTO) ([]Event, error)
@@ -31,7 +37,7 @@ func NewService(repository Repository, menuRepos menu.Repository, logger *loggin
 	}
 }
 
-func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (string, error) {
+func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (Event, error) {
 	s.logger.Infof("creating event %s", dto.Name)
 
 	// Так как time.Now() дает время с часовым поясом, а в DateTime без, то вычитаем 3 часа
@@ -45,7 +51,7 @@ func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (string, err
 
 	menu, err := s.menuRepos.FindMenu(ctx, menuDTO)
 	if err != nil {
-		return "", fmt.Errorf("finding menu error: %v", err)
+		return Event{}, fmt.Errorf("finding menu error: %v", err)
 	}
 
 	shopList := s.GetShoppingList(menu)
@@ -53,14 +59,26 @@ func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (string, err
 	eventID, err := s.repository.CreateEvent(ctx, dto, shopList)
 
 	if err != nil {
-		return "", err
+		return Event{}, err
+	}
+
+	evnt := Event{
+		ID:                 eventID,
+		HostID:             dto.HostID,
+		Name:               dto.Name,
+		Description:        dto.Description,
+		ParticipantsNumber: dto.ParticipantsNumber,
+		DateTime:           dto.DateTime,
+		Status:             statusCreated,
+		MenuID:             dto.MenuID,
+		ShoppingList:       shopList,
 	}
 
 	go s.SetActive(timer, eventID)
 
 	s.logger.Infof("event is created, event_id: %s", eventID)
 
-	return eventID, nil
+	return evnt, nil
 }
 
 // Мероприятие становится активным

@@ -3,6 +3,7 @@ package ingredients
 import (
 	"context"
 	"fmt"
+	"restapi/internal/domain/event"
 	"restapi/pkg/logging"
 )
 
@@ -14,23 +15,31 @@ type Service interface {
 	FindIngredient(context.Context, FindIngredientDTO) (Ingredient, error)
 	FindEventIngredients(context.Context, FindEventIngredientsDTO) (RespEventIngredients, error)
 	UpdateIngredient(context.Context, UpdateIngredientDTO) error
+	UpdateIceTypesNum(context.Context, UpdIceTypesNumDTO) error
 	Validate(AddIngredientsDTO) error
 }
 
 type service struct {
 	repository Repository
+	eventRepos event.Repository
 	logger     *logging.Logger
 }
 
-func NewService(repository Repository, logger *logging.Logger) Service {
+func NewService(repository Repository, eventRepos event.Repository, logger *logging.Logger) Service {
 	return &service{
 		repository: repository,
+		eventRepos: eventRepos,
 		logger:     logger,
 	}
 }
 
 func (s *service) NewIngredients(ctx context.Context, dto AddIngredientsDTO) error {
 	s.logger.Infof("creating list of event ingredients")
+
+	err := s.eventRepos.UpdateIceTypesNum(ctx, dto.OnlyOneIceType, dto.EventID)
+	if err != nil {
+		return fmt.Errorf("finding event error: %v", err)
+	}
 
 	IDs, err := s.repository.AddIngredients(ctx, dto)
 
@@ -128,6 +137,19 @@ func (s *service) UpdateIngredient(ctx context.Context, dto UpdateIngredientDTO)
 	}
 
 	s.logger.Infof("ingredient %s is updated", updatedID)
+
+	return nil
+}
+
+func (s *service) UpdateIceTypesNum(ctx context.Context, dto UpdIceTypesNumDTO) error {
+	s.logger.Infof("update number of ice types available")
+
+	err := s.eventRepos.UpdateIceTypesNum(ctx, dto.OnlyOneIceType, dto.EventID)
+	if err != nil {
+		return fmt.Errorf("finding event error: %v", err)
+	}
+
+	s.logger.Infof("number of ice types available is updated")
 
 	return nil
 }

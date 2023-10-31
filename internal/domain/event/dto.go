@@ -5,7 +5,7 @@ import "time"
 type CreateEventDTO struct {
 	HostID             string    `json:"host_id"`
 	Name               string    `json:"name"`
-	Description        string    `json:"info"`
+	Description        string    `json:"description"`
 	ParticipantsNumber uint32    `json:"participants_number"`
 	DateTime           time.Time `json:"date_time"`
 	MenuID             string    `json:"menu_id"`
@@ -27,7 +27,7 @@ type FindEventDTO struct {
 type UpdateEventDTO struct {
 	ID                 string    `json:"id"`
 	Name               string    `json:"name"`
-	Description        string    `json:"info"`
+	Description        string    `json:"description"`
 	ParticipantsNumber uint32    `json:"participants_number"`
 	DateTime           time.Time `json:"date_time"`
 }
