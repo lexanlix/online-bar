@@ -9,5 +9,5 @@ type Repository interface {
 	DeleteEventIngredients(context.Context, DeleteEventIngrDTO) error
 	FindIngredient(context.Context, FindIngredientDTO) (Ingredient, error)
 	FindEventIngredients(context.Context, FindEventIngredientsDTO) ([]Ingredient, error)
-	UpdateIngredient(context.Context, UpdateIngredientDTO) (string, error)
+	UpdateIngredient(context.Context, UpdateIngredientDTO) error
 }

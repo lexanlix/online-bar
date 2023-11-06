@@ -42,13 +42,13 @@ func (s *service) OpenBar(ctx context.Context, dto CreateBarDTO) (uint32, error)
 func (s *service) CloseBar(ctx context.Context, dto CloseBarDTO) error {
 	s.logger.Infof("closing bar %d", dto.ID)
 
-	status, err := s.repository.CloseBar(ctx, dto)
+	err := s.repository.CloseBar(ctx, dto)
 
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("bar is %s, bar_id: %d", status, dto.ID)
+	s.logger.Infof("bar is closed, bar_id: %d", dto.ID)
 
 	return nil
 }
@@ -88,13 +88,13 @@ func (s *service) GetBarOrders(ctx context.Context, dto GetBarOrdersDTO) ([]stri
 func (s *service) UpdateInfo(ctx context.Context, dto UpdateBarDTO) error {
 	s.logger.Infof("update bar")
 
-	updatedID, err := s.repository.UpdateInfo(ctx, dto)
+	err := s.repository.UpdateInfo(ctx, dto)
 
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("bar %s is updated", updatedID)
+	s.logger.Infof("bar %s is updated", dto.ID)
 
 	return nil
 }

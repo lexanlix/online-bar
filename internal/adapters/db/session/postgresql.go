@@ -2,12 +2,15 @@ package session_db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"restapi/internal/domain/session"
 	"restapi/pkg/client/postgresql"
 	"restapi/pkg/logging"
 	repeatable "restapi/pkg/utils"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type SessionRepository struct {
@@ -49,11 +52,21 @@ func (sr *SessionRepository) UpdateSession(ctx context.Context, userID string, s
 	`
 	sr.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	row := sr.client.QueryRow(ctx, q, session.RefreshToken, session.ExpiresAt, time.Now(), userID)
+	ct, err := sr.client.Exec(ctx, q, session.RefreshToken, session.ExpiresAt, time.Now(), userID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			sr.logger.Error(newErr)
+			return newErr
+		}
 
-	err := row.Scan()
+		return err
+	}
 
-	if err.Error() != "no rows in result set" {
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database updating error: user session not found")
 		return err
 	}
 

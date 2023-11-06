@@ -130,13 +130,13 @@ func (s *service) FindEventIngredients(ctx context.Context, dto FindEventIngredi
 func (s *service) UpdateIngredient(ctx context.Context, dto UpdateIngredientDTO) error {
 	s.logger.Infof("update ingredient")
 
-	updatedID, err := s.repository.UpdateIngredient(ctx, dto)
+	err := s.repository.UpdateIngredient(ctx, dto)
 
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("ingredient %s is updated", updatedID)
+	s.logger.Infof("ingredient %s is updated", dto.ID)
 
 	return nil
 }

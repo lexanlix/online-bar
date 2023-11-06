@@ -54,63 +54,67 @@ func (r *repository) CreateEvent(ctx context.Context, dto event.CreateEventDTO, 
 	return eventID, nil
 }
 
-func (r *repository) SetActive(ctx context.Context, event_id string) (string, error) {
+func (r *repository) SetActive(ctx context.Context, event_id string) error {
 	q := `
 	UPDATE events
 	SET 
 		status = $2
 	WHERE 
 		id = $1
-	RETURNING status
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	var status string
-
-	err := r.client.QueryRow(ctx, q, event_id, statusActive).Scan(&status)
+	ct, err := r.client.Exec(ctx, q, event_id, statusActive)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			pgErr = err.(*pgconn.PgError)
 			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
 			r.logger.Error(newErr)
-			return "", newErr
+			return newErr
 		}
 
-		return "", err
+		return err
 	}
 
-	return status, nil
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database updating error: event not found")
+		return err
+	}
+
+	return nil
 }
 
 // Не удаляет ивент из таблицы, а устанавливает статус "Completed"
-func (r *repository) DeleteEvent(ctx context.Context, dto event.CompleteEventDTO) (string, error) {
+func (r *repository) DeleteEvent(ctx context.Context, dto event.CompleteEventDTO) error {
 	q := `
 	UPDATE events
 	SET 
 		status = $2
 	WHERE 
 		id = $1
-	RETURNING status
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	var status string
-
-	err := r.client.QueryRow(ctx, q, dto.ID, statusCompleted).Scan(&status)
+	ct, err := r.client.Exec(ctx, q, dto.ID, statusCompleted)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			pgErr = err.(*pgconn.PgError)
 			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
 			r.logger.Error(newErr)
-			return "", newErr
+			return newErr
 		}
 
-		return "", err
+		return err
 	}
 
-	return status, nil
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database updating error: event not found")
+		return err
+	}
+
+	return nil
 }
 
 func (r *repository) FindAllUserEvents(ctx context.Context, dto event.FindAllEventsDTO) (event.RespAllEvents, error) {
@@ -188,34 +192,35 @@ func (r *repository) FindUserEvent(ctx context.Context, dto event.FindEventDTO) 
 	return evnt, nil
 }
 
-func (r *repository) UpdateEvent(ctx context.Context, dto event.UpdateEventDTO) (string, error) {
+func (r *repository) UpdateEvent(ctx context.Context, dto event.UpdateEventDTO) error {
 	q := `
 	UPDATE events
 	SET 
 		name = $2, description = $3, participants_number = $4, date_time = $5
 	WHERE 
 		id = $1
-	RETURNING id
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	var updatedID string
-
-	err := r.client.QueryRow(ctx, q, dto.ID, dto.Name, dto.Description, dto.ParticipantsNumber,
-		dto.DateTime).Scan(&updatedID)
+	ct, err := r.client.Exec(ctx, q, dto.ID, dto.Name, dto.Description, dto.ParticipantsNumber, dto.DateTime)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			pgErr = err.(*pgconn.PgError)
 			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
 			r.logger.Error(newErr)
-			return "", newErr
+			return newErr
 		}
 
-		return "", err
+		return err
 	}
 
-	return updatedID, nil
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database updating error: event not found")
+		return err
+	}
+
+	return nil
 }
 
 func (r *repository) UpdateIceTypesNum(ctx context.Context, onlyOneIceType bool, eventID string) error {

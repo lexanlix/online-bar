@@ -220,33 +220,35 @@ func (r *repository) FindEventIngredients(ctx context.Context,
 	return Ingrs, nil
 }
 
-func (r *repository) UpdateIngredient(ctx context.Context, dto ingredients.UpdateIngredientDTO) (string, error) {
+func (r *repository) UpdateIngredient(ctx context.Context, dto ingredients.UpdateIngredientDTO) error {
 	q := `
 	UPDATE ingredients
 	SET
 		type = $2, name = $3, unit = $4, volume = $5, cost = $6
 	WHERE
 		id = $1
-	RETURNING id
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	var updatedID string
-
-	err := r.client.QueryRow(ctx, q, dto.ID, dto.Type, dto.Name, dto.Unit, dto.Volume, dto.Cost).Scan(&updatedID)
+	ct, err := r.client.Exec(ctx, q, dto.ID, dto.Type, dto.Name, dto.Unit, dto.Volume, dto.Cost)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			pgErr = err.(*pgconn.PgError)
 			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
 			r.logger.Error(newErr)
-			return "", newErr
+			return newErr
 		}
 
-		return "", err
+		return err
 	}
 
-	return updatedID, nil
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database updating error: ingredient not found")
+		return err
+	}
+
+	return nil
 }
 
 func NewRepository(client postgresql.Client, logger *logging.Logger) ingredients.Repository {

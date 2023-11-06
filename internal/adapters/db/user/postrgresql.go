@@ -9,7 +9,6 @@ import (
 	"restapi/pkg/hash"
 	"restapi/pkg/logging"
 	repeatable "restapi/pkg/utils"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -58,25 +57,24 @@ func (r *repository) Delete(ctx context.Context, id string) error {
 		users 
 	WHERE 
 		id = $1
-	RETURNING true AS is_deleted
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	var isDeleted bool
-
-	err := r.client.QueryRow(ctx, q, id).Scan(&isDeleted)
+	ct, err := r.client.Exec(ctx, q, id)
 	if err != nil {
-		if strings.Contains(err.Error(), "SQLSTATE 22P02") {
-			err := fmt.Errorf("database error: %v", err)
-			return err
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return newErr
 		}
 
-		err := fmt.Errorf("database error: rows not found")
 		return err
 	}
 
-	if !isDeleted {
-		err := fmt.Errorf("database deleting error: %v", err)
+	if ct.String() != "DELETE 1" {
+		err := fmt.Errorf("database deleting error: user not found")
 		return err
 	}
 
@@ -99,6 +97,14 @@ func (r *repository) GetByCredentials(ctx context.Context, login, passwordHash s
 	err := r.client.QueryRow(ctx, q, login, passwordHash).Scan(&usr.ID, &usr.Name, &usr.Login, &usr.PasswordHash,
 		&usr.OneTimeCode)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return user.User{}, newErr
+		}
+
 		return user.User{}, err
 	}
 
@@ -159,14 +165,18 @@ func (r *repository) FindAll(ctx context.Context) ([]user.User, error) {
 
 		err = rows.Scan(&usr.ID, &usr.Name, &usr.Login, &usr.PasswordHash, &usr.OneTimeCode)
 		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				pgErr = err.(*pgconn.PgError)
+				newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+				r.logger.Error(newErr)
+				return nil, newErr
+			}
+
 			return nil, err
 		}
 
 		users = append(users, usr)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
 	}
 
 	return users, nil
@@ -187,6 +197,14 @@ func (r *repository) FindOne(ctx context.Context, id string) (user.User, error) 
 	err := r.client.QueryRow(ctx, q, id).Scan(&usr.ID, &usr.Name, &usr.Login,
 		&usr.PasswordHash, &usr.OneTimeCode)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			pgErr = err.(*pgconn.PgError)
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			r.logger.Error(newErr)
+			return user.User{}, newErr
+		}
+
 		return user.User{}, err
 	}
 
@@ -200,12 +218,10 @@ func (r *repository) Update(ctx context.Context, user user.User) error {
 		name = $2, login = $3, password_hash = $4, one_time_code = $5
 	WHERE 
 		id = $1
-	RETURNING id
 	`
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	err := r.client.QueryRow(ctx, q, user.ID, user.Name, user.Login, user.PasswordHash,
-		user.OneTimeCode).Scan(&user.ID)
+	ct, err := r.client.Exec(ctx, q, user.ID, user.Name, user.Login, user.PasswordHash, user.OneTimeCode)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -215,6 +231,11 @@ func (r *repository) Update(ctx context.Context, user user.User) error {
 			return newErr
 		}
 
+		return err
+	}
+
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database updating error: user not found")
 		return err
 	}
 
@@ -228,12 +249,11 @@ func (r *repository) PartUpdate(ctx context.Context, dto user.PartUpdateUserDTO)
 	case "name":
 		{
 			q = `
-		UPDATE users
-		SET 
-			name = $2
-		WHERE 
-			id = $1
-		RETURNING id
+			UPDATE users
+			SET 
+				name = $2
+			WHERE 
+				id = $1
 		`
 		}
 	case "login":
@@ -244,18 +264,16 @@ func (r *repository) PartUpdate(ctx context.Context, dto user.PartUpdateUserDTO)
 				login = $2
 			WHERE 
 				id = $1
-			RETURNING id
 			`
 		}
 	case "password_hash":
 		{
 			q = `
-		UPDATE users
-		SET 
-			password_hash = $2
-		WHERE 
-			id = $1
-		RETURNING id
+			UPDATE users
+			SET 
+				password_hash = $2
+			WHERE 
+				id = $1
 		`
 		}
 	case "one_time_code":
@@ -266,14 +284,13 @@ func (r *repository) PartUpdate(ctx context.Context, dto user.PartUpdateUserDTO)
 				one_time_code = $2
 			WHERE 
 				id = $1
-			RETURNING id
 			`
 		}
 	}
 
 	r.logger.Trace(fmt.Sprintf("SQL query: %s", repeatable.FormatQuery(q)))
 
-	err := r.client.QueryRow(ctx, q, dto.ID, dto.Value).Scan(&dto.ID)
+	ct, err := r.client.Exec(ctx, q, dto.ID, dto.Value)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -283,6 +300,11 @@ func (r *repository) PartUpdate(ctx context.Context, dto user.PartUpdateUserDTO)
 			return newErr
 		}
 
+		return err
+	}
+
+	if ct.String() != "UPDATE 1" {
+		err := fmt.Errorf("database updating error: user not found")
 		return err
 	}
 

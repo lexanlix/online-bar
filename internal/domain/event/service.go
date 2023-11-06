@@ -81,28 +81,28 @@ func (s *service) NewEvent(ctx context.Context, dto CreateEventDTO) (Event, erro
 	return evnt, nil
 }
 
-// Мероприятие становится активным
+// TODO обработка ошибки
 func (s *service) SetActive(timer *time.Timer, id string) {
 	<-timer.C
 
-	status, err := s.repository.SetActive(context.TODO(), id)
+	err := s.repository.SetActive(context.TODO(), id)
 	if err != nil {
 		panic(err)
 	}
 
-	s.logger.Infof("event %s now is %s", id, status)
+	s.logger.Infof("event %s now is Active", id)
 }
 
 func (s *service) CompleteEvent(ctx context.Context, dto CompleteEventDTO) error {
 	s.logger.Infof("completing event %s", dto.ID)
 
-	status, err := s.repository.DeleteEvent(ctx, dto)
+	err := s.repository.DeleteEvent(ctx, dto)
 
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("event is %s, event_id: %s", status, dto.ID)
+	s.logger.Infof("event is Completed, event_id: %s", dto.ID)
 
 	return nil
 }
@@ -139,13 +139,13 @@ func (s *service) FindEvent(ctx context.Context, dto FindEventDTO) (Event, error
 func (s *service) UpdateEvent(ctx context.Context, dto UpdateEventDTO) error {
 	s.logger.Infof("update event")
 
-	updatedID, err := s.repository.UpdateEvent(ctx, dto)
+	err := s.repository.UpdateEvent(ctx, dto)
 
 	if err != nil {
 		return err
 	}
 
-	s.logger.Infof("event %s is updated", updatedID)
+	s.logger.Infof("event %s is updated", dto.ID)
 
 	return nil
 }
